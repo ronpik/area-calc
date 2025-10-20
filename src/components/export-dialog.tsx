@@ -144,9 +144,16 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       currentY += 12;
 
       if (points.length >= 3) {
-        doc.setFontSize(14);
-        doc.text(`שטח כולל: ${area.toFixed(2)} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
+        // Captured Area Section - Prominent display
+        doc.setFontSize(16);
+        doc.text('שטח מדוד', pageWidth / 2, currentY, { align: 'center' });
         currentY += 10;
+
+        // Large area value with unit (24pt for prominence)
+        doc.setFontSize(24);
+        const areaText = `${area.toFixed(2)} מ"ר`;
+        doc.text(areaText, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 15;
       }
 
       // Use fixed 4:3 aspect ratio to match capture dimensions
