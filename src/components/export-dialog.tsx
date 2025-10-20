@@ -130,8 +130,8 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       const margin = 15;
       let currentY = margin;
 
-      doc.setFontSize(22);
-      doc.text(title || 'AreaCalc Report', pageWidth / 2, currentY, { align: 'center' });
+      // doc.setFontSize(22);
+      doc.text(title || 'דו״ח מדידת שטח', pageWidth / 2, currentY, { align: 'center' });
       currentY += 8;
 
       const creationDate = new Date().toLocaleDateString('he-IL', {
@@ -144,21 +144,14 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       currentY += 12;
 
       if (points.length >= 3) {
-        // Captured Area Section - Prominent display
-        doc.setFontSize(16);
-        doc.text('שטח מדוד', pageWidth / 2, currentY, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text(`שטח כולל: ${area.toFixed(2)} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
         currentY += 10;
 
-        // Temporarily disable RTL for numeric display (numbers don't render correctly in RTL mode)
-        doc.setR2L(false);
-        doc.setFontSize(24);
-        // Format: number + unit (displayed LTR)
-        const areaText = `${area.toFixed(2)} sq.m`;
-        doc.text(areaText, pageWidth / 2, currentY, { align: 'center' });
-
-        // Re-enable RTL and restore font
-        doc.setR2L(true);
-        currentY += 15;
+        // // Temporarily disable RTL for numeric display (numbers don't render correctly in RTL mode)
+        // doc.setR2L(false);
+        // // Re-enable RTL and restore font
+        // doc.setR2L(true);
       }
 
       // Use fixed 4:3 aspect ratio to match capture dimensions
