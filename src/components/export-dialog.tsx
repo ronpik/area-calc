@@ -93,6 +93,20 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       const map = (window as any).leafletMap;
       if (map) {
         map.invalidateSize();
+
+        // Fit map bounds to show all tracked points
+        if (points.length > 2) {
+          const lats = points.map(p => p.point.lat);
+          const lngs = points.map(p => p.point.lng);
+          const bounds: [[number, number], [number, number]] = [
+            [Math.min(...lats), Math.min(...lngs)],
+            [Math.max(...lats), Math.max(...lngs)]
+          ];
+
+          // Fit map to show all points with padding
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
+
         // Wait for redraw to complete
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -118,8 +132,8 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
           // Convert lat/lng to pixel coordinates
           const pixelPoints = points.map(point => {
-            const x = ((point.lng - west) / (east - west)) * captureWidth;
-            const y = ((north - point.lat) / (north - south)) * captureHeight;
+            const x = ((point.point.lng - west) / (east - west)) * captureWidth;
+            const y = ((north - point.point.lat) / (north - south)) * captureHeight;
             return { x, y };
           });
 
