@@ -149,10 +149,15 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         doc.text('שטח מדוד', pageWidth / 2, currentY, { align: 'center' });
         currentY += 10;
 
-        // Large area value with unit (24pt for prominence)
+        // Temporarily disable RTL for numeric display (numbers don't render correctly in RTL mode)
+        doc.setR2L(false);
         doc.setFontSize(24);
-        const areaText = `${area.toFixed(2)} מ"ר`;
+        // Format: number + unit (displayed LTR)
+        const areaText = `${area.toFixed(2)} sq.m`;
         doc.text(areaText, pageWidth / 2, currentY, { align: 'center' });
+
+        // Re-enable RTL and restore font
+        doc.setR2L(true);
         currentY += 15;
       }
 
