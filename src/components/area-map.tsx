@@ -27,6 +27,22 @@ const ChangeView: FC<{ center: LatLngExpression; zoom: number }> = ({ center, zo
   return null;
 }
 
+const MapInstanceExposer: FC = () => {
+  const map = useMap();
+
+  React.useEffect(() => {
+    // Expose map instance for PDF export functionality
+    (window as any).leafletMap = map;
+
+    return () => {
+      // Cleanup on unmount
+      delete (window as any).leafletMap;
+    };
+  }, [map]);
+
+  return null;
+}
+
 const MapLayers: FC<Omit<AreaMapProps, 'center' | 'zoom'>> = ({ 
   currentPosition, 
   trackedPoints,
@@ -155,8 +171,9 @@ const AreaMapComponent: FC<AreaMapProps> = ({
           style={{ height: '100%', width: '100%' }}
         >
           <ChangeView center={[center.lat, center.lng]} zoom={zoom} />
-          <MapLayers 
-            currentPosition={currentPosition} 
+          <MapInstanceExposer />
+          <MapLayers
+            currentPosition={currentPosition}
             trackedPoints={trackedPoints}
             selectedPointIndex={selectedPointIndex}
             onPointClick={onPointClick}

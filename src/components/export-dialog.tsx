@@ -76,12 +76,44 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         throw new Error("Map element not found");
       }
 
+      // Store original dimensions for restoration
+      const originalWidth = mapElement.style.width;
+      const originalHeight = mapElement.style.height;
+      const originalTransform = mapElement.style.transform;
+
+      // Set standardized dimensions for consistent capture (4:3 aspect ratio)
+      const captureWidth = 1200; // px
+      const captureHeight = 900; // px
+
+      mapElement.style.width = `${captureWidth}px`;
+      mapElement.style.height = `${captureHeight}px`;
+      mapElement.style.transform = 'none';
+
+      // Force Leaflet to recalculate and redraw
+      const map = (window as any).leafletMap;
+      if (map) {
+        map.invalidateSize();
+        // Wait for redraw to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         allowTaint: true,
         logging: false,
-        scale: 2,
+        scale: 1, // Use scale 1 since we're already at desired resolution
+        width: captureWidth,
+        height: captureHeight,
       });
+
+      // Restore original dimensions immediately after capture
+      mapElement.style.width = originalWidth;
+      mapElement.style.height = originalHeight;
+      mapElement.style.transform = originalTransform;
+
+      if (map) {
+        map.invalidateSize();
+      }
 
       const mapImageData = canvas.toDataURL('image/png');
       const doc = new jsPDF({
@@ -117,9 +149,9 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         currentY += 10;
       }
 
-      const imgProps = doc.getImageProperties(mapImageData);
+      // Use fixed 4:3 aspect ratio to match capture dimensions
       const imgWidth = pageWidth - margin * 2;
-      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+      const imgHeight = (imgWidth * 3) / 4; // Maintain 4:3 aspect ratio
       doc.addImage(mapImageData, 'PNG', margin, currentY, imgWidth, imgHeight);
 
       // Draw North Arrow
