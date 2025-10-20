@@ -76,7 +76,14 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         throw new Error("Map element not found");
       }
 
-      // Store original dimensions for restoration
+      const map = (window as any).leafletMap;
+      if (!map) {
+        throw new Error("Map instance not found");
+      }
+
+      // Store original state for restoration
+      const originalCenter = map.getCenter();
+      const originalZoom = map.getZoom();
       const originalWidth = mapElement.style.width;
       const originalHeight = mapElement.style.height;
       const originalTransform = mapElement.style.transform;
@@ -90,26 +97,34 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       mapElement.style.transform = 'none';
 
       // Force Leaflet to recalculate and redraw
-      const map = (window as any).leafletMap;
-      if (map) {
-        map.invalidateSize();
+      map.invalidateSize();
 
-        // Fit map bounds to show all tracked points
-        if (points.length > 2) {
-          const lats = points.map(p => p.point.lat);
-          const lngs = points.map(p => p.point.lng);
-          const bounds: [[number, number], [number, number]] = [
-            [Math.min(...lats), Math.min(...lngs)],
-            [Math.max(...lats), Math.max(...lngs)]
-          ];
+      // Fit map bounds to show all tracked points
+      if (points.length >= 3) {
+        // Use Leaflet's bounds API for accurate bounds calculation
+        const latLngs = points.map(p => [p.point.lat, p.point.lng]);
+        const bounds = (window as any).L.latLngBounds(latLngs);
 
-          // Fit map to show all points with padding
-          map.fitBounds(bounds, { padding: [50, 50] });
-        }
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 18,        // Prevent excessive zoom for small areas
+          animate: false      // No animation during export
+        });
+      } else if (points.length > 0) {
+        // Handle case with points but not enough for a polygon
+        const latLngs = points.map(p => [p.point.lat, p.point.lng]);
+        const bounds = (window as any).L.latLngBounds(latLngs);
 
-        // Wait for redraw to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 18,
+          animate: false
+        });
       }
+
+      // Wait for map to redraw completely with extra invalidation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      map.invalidateSize({ pan: false });
 
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
@@ -120,14 +135,79 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         height: captureHeight,
       });
 
-      // Restore original dimensions immediately after capture
+      // Manually draw the polygon using Leaflet's accurate coordinate projection
+      if (points.length > 2) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Use Leaflet's latLngToContainerPoint for pixel-perfect accuracy
+          const pixelPoints = points.map(p => {
+            const point = map.latLngToContainerPoint([p.point.lat, p.point.lng]);
+            return { x: point.x, y: point.y };
+          });
+
+          // Get the primary color from CSS variables
+          const primaryColor = getComputedStyle(document.documentElement)
+            .getPropertyValue('--primary')
+            .trim();
+
+          // Convert HSL values to RGB (format is typically "222.2 47.4% 11.2%")
+          const hslMatch = primaryColor.match(/(\d+\.?\d*)\s+(\d+\.?\d*)%\s+(\d+\.?\d*)%/);
+          let fillColor = 'rgba(59, 130, 246, 0.3)'; // fallback blue
+          let strokeColor = 'rgb(59, 130, 246)';
+
+          if (hslMatch) {
+            const h = parseFloat(hslMatch[1]);
+            const s = parseFloat(hslMatch[2]) / 100;
+            const l = parseFloat(hslMatch[3]) / 100;
+
+            // Convert HSL to RGB
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+            const m = l - c / 2;
+
+            let r = 0, g = 0, b = 0;
+            if (h < 60) { r = c; g = x; b = 0; }
+            else if (h < 120) { r = x; g = c; b = 0; }
+            else if (h < 180) { r = 0; g = c; b = x; }
+            else if (h < 240) { r = 0; g = x; b = c; }
+            else if (h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+
+            const red = Math.round((r + m) * 255);
+            const green = Math.round((g + m) * 255);
+            const blue = Math.round((b + m) * 255);
+
+            fillColor = `rgba(${red}, ${green}, ${blue}, 0.3)`;
+            strokeColor = `rgb(${red}, ${green}, ${blue})`;
+          }
+
+          // Draw the polygon with accurate coordinates
+          ctx.beginPath();
+          ctx.moveTo(pixelPoints[0].x, pixelPoints[0].y);
+          for (let i = 1; i < pixelPoints.length; i++) {
+            ctx.lineTo(pixelPoints[i].x, pixelPoints[i].y);
+          }
+          ctx.closePath();
+
+          // Fill with semi-transparent color
+          ctx.fillStyle = fillColor;
+          ctx.fill();
+
+          // Draw border
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      // Restore original dimensions and view immediately after capture
       mapElement.style.width = originalWidth;
       mapElement.style.height = originalHeight;
       mapElement.style.transform = originalTransform;
 
-      if (map) {
-        map.invalidateSize();
-      }
+      // Restore original map view
+      map.setView(originalCenter, originalZoom, { animate: false });
+      map.invalidateSize();
 
       const mapImageData = canvas.toDataURL('image/png');
       const doc = new jsPDF({
