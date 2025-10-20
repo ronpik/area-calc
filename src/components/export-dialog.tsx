@@ -106,6 +106,78 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         height: captureHeight,
       });
 
+      // Manually draw the polygon on the canvas to ensure it's visible in the PDF
+      if (map && points.length > 2) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const bounds = map.getBounds();
+          const west = bounds.getWest();
+          const east = bounds.getEast();
+          const north = bounds.getNorth();
+          const south = bounds.getSouth();
+
+          // Convert lat/lng to pixel coordinates
+          const pixelPoints = points.map(point => {
+            const x = ((point.lng - west) / (east - west)) * captureWidth;
+            const y = ((north - point.lat) / (north - south)) * captureHeight;
+            return { x, y };
+          });
+
+          // Get the primary color from CSS variables
+          const primaryColor = getComputedStyle(document.documentElement)
+            .getPropertyValue('--primary')
+            .trim();
+
+          // Convert HSL values to RGB (format is typically "222.2 47.4% 11.2%")
+          const hslMatch = primaryColor.match(/(\d+\.?\d*)\s+(\d+\.?\d*)%\s+(\d+\.?\d*)%/);
+          let fillColor = 'rgba(59, 130, 246, 0.3)'; // fallback blue
+          let strokeColor = 'rgb(59, 130, 246)';
+
+          if (hslMatch) {
+            const h = parseFloat(hslMatch[1]);
+            const s = parseFloat(hslMatch[2]) / 100;
+            const l = parseFloat(hslMatch[3]) / 100;
+
+            // Convert HSL to RGB
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+            const m = l - c / 2;
+
+            let r = 0, g = 0, b = 0;
+            if (h < 60) { r = c; g = x; b = 0; }
+            else if (h < 120) { r = x; g = c; b = 0; }
+            else if (h < 180) { r = 0; g = c; b = x; }
+            else if (h < 240) { r = 0; g = x; b = c; }
+            else if (h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+
+            const red = Math.round((r + m) * 255);
+            const green = Math.round((g + m) * 255);
+            const blue = Math.round((b + m) * 255);
+
+            fillColor = `rgba(${red}, ${green}, ${blue}, 0.3)`;
+            strokeColor = `rgb(${red}, ${green}, ${blue})`;
+          }
+
+          // Draw the polygon
+          ctx.beginPath();
+          ctx.moveTo(pixelPoints[0].x, pixelPoints[0].y);
+          for (let i = 1; i < pixelPoints.length; i++) {
+            ctx.lineTo(pixelPoints[i].x, pixelPoints[i].y);
+          }
+          ctx.closePath();
+
+          // Fill with semi-transparent color
+          ctx.fillStyle = fillColor;
+          ctx.fill();
+
+          // Draw border
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
       // Restore original dimensions immediately after capture
       mapElement.style.width = originalWidth;
       mapElement.style.height = originalHeight;

@@ -148,7 +148,15 @@ const MapLayers: FC<Omit<AreaMapProps, 'center' | 'zoom'>> = ({
             })}
 
             {points.length > 2 && (
-                <Polygon positions={polygonPositions} pathOptions={{ color: 'hsl(var(--primary))' }} />
+                <Polygon
+                  positions={polygonPositions}
+                  pathOptions={{
+                    color: 'hsl(var(--primary))',
+                    fillColor: 'hsl(var(--primary))',
+                    fillOpacity: 0.3,
+                    weight: 2
+                  }}
+                />
             )}
         </>
     );
