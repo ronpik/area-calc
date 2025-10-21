@@ -161,6 +161,15 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         }
       });
 
+      // Hide marker shadows (associated with default Leaflet markers)
+      const allShadows = mapElement.querySelectorAll('.leaflet-marker-shadow');
+      const hiddenShadows: HTMLElement[] = [];
+      allShadows.forEach((shadow) => {
+        const shadowEl = shadow as HTMLElement;
+        hiddenShadows.push(shadowEl);
+        shadowEl.style.display = 'none';
+      });
+
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         allowTaint: true,
@@ -182,6 +191,9 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       }
       hiddenMarkers.forEach(marker => {
         marker.style.display = '';
+      });
+      hiddenShadows.forEach(shadow => {
+        shadow.style.display = '';
       });
 
       // Manually draw the polygon using Leaflet's accurate coordinate projection
