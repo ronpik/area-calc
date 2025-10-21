@@ -126,6 +126,14 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       await new Promise(resolve => setTimeout(resolve, 800));
       map.invalidateSize({ pan: false });
 
+                               // Hide Leaflet's polygon before capture to prevent duplication
+      // We'll manually draw it with accurate coordinates instead
+      const polygonPane = mapElement.querySelector('.leaflet-overlay-pane');
+      const originalPolygonDisplay = polygonPane ? (polygonPane as HTMLElement).style.display : '';
+      if (polygonPane) {
+        (polygonPane as HTMLElement).style.display = 'none';
+      }
+
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         allowTaint: true,
@@ -134,6 +142,11 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         width: captureWidth,
         height: captureHeight,
       });
+
+      // Restore polygon visibility
+      if (polygonPane) {
+        (polygonPane as HTMLElement).style.display = originalPolygonDisplay;
+      }
 
       // Manually draw the polygon using Leaflet's accurate coordinate projection
       if (points.length > 2) {
