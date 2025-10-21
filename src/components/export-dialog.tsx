@@ -148,14 +148,14 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         (attribution as HTMLElement).style.display = 'none';
       }
 
-      // Hide current location marker (default Leaflet marker with img tag)
-      // Keep custom numbered markers (divIcon with custom HTML)
+      // Hide current location marker (doesn't have bg-transparent class)
+      // Keep custom numbered markers (have bg-transparent border-0 classes)
       const allMarkers = mapElement.querySelectorAll('.leaflet-marker-icon');
       const hiddenMarkers: HTMLElement[] = [];
       allMarkers.forEach((marker) => {
         const markerEl = marker as HTMLElement;
-        // Default Leaflet markers contain img tags, custom numbered markers use div
-        if (markerEl.querySelector('img')) {
+        // Custom numbered markers have 'bg-transparent' class, current location marker doesn't
+        if (!markerEl.classList.contains('bg-transparent')) {
           hiddenMarkers.push(markerEl);
           markerEl.style.display = 'none';
         }
