@@ -126,13 +126,40 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       await new Promise(resolve => setTimeout(resolve, 800));
       map.invalidateSize({ pan: false });
 
-                               // Hide Leaflet's polygon before capture to prevent duplication
+      // Hide Leaflet's polygon before capture to prevent duplication
       // We'll manually draw it with accurate coordinates instead
       const polygonPane = mapElement.querySelector('.leaflet-overlay-pane');
       const originalPolygonDisplay = polygonPane ? (polygonPane as HTMLElement).style.display : '';
       if (polygonPane) {
         (polygonPane as HTMLElement).style.display = 'none';
       }
+
+      // Hide zoom controls
+      const zoomControl = mapElement.querySelector('.leaflet-control-zoom');
+      const originalZoomDisplay = zoomControl ? (zoomControl as HTMLElement).style.display : '';
+      if (zoomControl) {
+        (zoomControl as HTMLElement).style.display = 'none';
+      }
+
+      // Hide attribution
+      const attribution = mapElement.querySelector('.leaflet-control-attribution');
+      const originalAttributionDisplay = attribution ? (attribution as HTMLElement).style.display : '';
+      if (attribution) {
+        (attribution as HTMLElement).style.display = 'none';
+      }
+
+      // Hide current location marker (default Leaflet marker with img tag)
+      // Keep custom numbered markers (divIcon with custom HTML)
+      const allMarkers = mapElement.querySelectorAll('.leaflet-marker-icon');
+      const hiddenMarkers: HTMLElement[] = [];
+      allMarkers.forEach((marker) => {
+        const markerEl = marker as HTMLElement;
+        // Default Leaflet markers contain img tags, custom numbered markers use div
+        if (markerEl.querySelector('img')) {
+          hiddenMarkers.push(markerEl);
+          markerEl.style.display = 'none';
+        }
+      });
 
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
@@ -143,10 +170,19 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         height: captureHeight,
       });
 
-      // Restore polygon visibility
+      // Restore visibility of hidden elements
       if (polygonPane) {
         (polygonPane as HTMLElement).style.display = originalPolygonDisplay;
       }
+      if (zoomControl) {
+        (zoomControl as HTMLElement).style.display = originalZoomDisplay;
+      }
+      if (attribution) {
+        (attribution as HTMLElement).style.display = originalAttributionDisplay;
+      }
+      hiddenMarkers.forEach(marker => {
+        marker.style.display = '';
+      });
 
       // Manually draw the polygon using Leaflet's accurate coordinate projection
       if (points.length > 2) {
