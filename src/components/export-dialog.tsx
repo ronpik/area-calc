@@ -307,15 +307,19 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
       if (points.length >= 3) {
         doc.setFontSize(14);
+        doc.setFont('Rubik', 'bold');
         const formattedArea = formatNumberWithSeparators(area);
         doc.text(`שטח כולל: ${formattedArea} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
+        doc.setFont('Rubik', 'normal');
         currentY += 10;
       }
 
       // Use fixed 4:3 aspect ratio to match capture dimensions
-      const imgWidth = pageWidth - margin * 2;
+      // Reduced size (80% of full width) and right-aligned
+      const imgWidth = (pageWidth - margin * 2) * 0.8;
       const imgHeight = (imgWidth * 3) / 4; // Maintain 4:3 aspect ratio
-      doc.addImage(mapImageData, 'PNG', margin, currentY, imgWidth, imgHeight);
+      const imgX = pageWidth - margin - imgWidth; // Right align
+      doc.addImage(mapImageData, 'PNG', imgX, currentY, imgWidth, imgHeight);
 
       // Draw North Arrow
       const arrowBaseX = pageWidth - margin - 8;
@@ -354,15 +358,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         doc.setR2L(false); // Disable RTL for coordinates
         doc.setFont('helvetica', 'normal'); // Switch to default font for English
         doc.setFontSize(12);
-        doc.text('Recorded Coordinates', leftColumnX, leftColumnY);
+        doc.text('Recorded Coordinates (Lat/Lng)', leftColumnX, leftColumnY);
         leftColumnY += 6;
         doc.setFontSize(8); // Smaller font for coordinates
         points.forEach((p, index) => {
-          const line = `${index + 1}. Lat: ${p.point.lat.toFixed(6)},`;
-          const line2 = `   Lng: ${p.point.lng.toFixed(6)} (${p.type})`;
+          const typeLabel = p.type === 'manual' ? 'M' : 'A';
+          const line = `${index + 1}. ${p.point.lat.toFixed(6)} / ${p.point.lng.toFixed(6)} (${typeLabel})`;
           doc.text(line, leftColumnX, leftColumnY);
-          leftColumnY += 3.5;
-          doc.text(line2, leftColumnX, leftColumnY);
           leftColumnY += 3.5;
         });
         // Restore font settings for right column
