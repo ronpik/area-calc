@@ -114,7 +114,7 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
         map.fitBounds(bounds, {
           padding: [50, 50],
-          maxZoom: 18,        // Prevent excessive zoom for small areas
+          maxZoom: 21,        // Allow closer zoom to show area detail
           animate: false      // No animation during export
         });
       } else if (points.length > 0) {
@@ -124,7 +124,7 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
         map.fitBounds(bounds, {
           padding: [50, 50],
-          maxZoom: 18,
+          maxZoom: 21,
           animate: false
         });
       }
