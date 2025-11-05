@@ -14,6 +14,28 @@ import type { TrackedPoint } from '@/app/page';
 import { useToast } from '@/hooks/use-toast';
 import { loadRubikFont } from '@/fonts/Rubik-normal';
 
+// Helper function to format numbers with thousand separators
+function formatNumberWithSeparators(num: number): string {
+  const parts = num.toFixed(2).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+}
+
+// Helper function to clean title for filename
+function cleanTitleForFilename(title: string): string {
+  if (!title || title.trim() === '') {
+    return 'area-report';
+  }
+
+  return title
+    .trim()
+    .replace(/\s+/g, '-')  // Replace spaces with dashes
+    .replace(/[^\w\u0590-\u05FF-]/g, '')  // Keep only word characters, Hebrew characters, and dashes
+    .replace(/-+/g, '-')  // Replace multiple dashes with single dash
+    .replace(/^-|-$/g, '')  // Remove leading/trailing dashes
+    .toLowerCase() || 'area-report';  // Fallback if result is empty
+}
+
 export interface KeyValue {
   id: number;
   key: string;
@@ -300,13 +322,9 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
       if (points.length >= 3) {
         doc.setFontSize(14);
-        doc.text(`שטח כולל: ${area.toFixed(2)} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
+        const formattedArea = formatNumberWithSeparators(area);
+        doc.text(`שטח כולל: ${formattedArea} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
         currentY += 10;
-
-        // // Temporarily disable RTL for numeric display (numbers don't render correctly in RTL mode)
-        // doc.setR2L(false);
-        // // Re-enable RTL and restore font
-        // doc.setR2L(true);
       }
 
       // Use fixed 4:3 aspect ratio to match capture dimensions
@@ -332,80 +350,89 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       doc.setFont('Rubik', 'normal');
 
 
-      currentY += imgHeight + 15;
+      currentY += imgHeight + 10;
 
-      const checkPageBreak = (heightNeeded: number) => {
-        if (currentY + heightNeeded > pageHeight - margin) {
-          doc.addPage();
-          currentY = margin;
-        }
-      };
+      // Two-column layout below the map
+      // Left column: Coordinates (if included)
+      // Right column: Summary, Key-values, Notes
 
-      if (points.length > 0) {
-        checkPageBreak(20);
-        doc.setFontSize(16);
-        doc.text('סיכום', pageWidth - margin, currentY, { align: 'right' });
-        currentY += 8;
-        doc.setFontSize(12);
-        doc.text(`סה"כ נקודות: ${points.length}`, pageWidth - margin, currentY, { align: 'right' });
-        currentY += 15;
-      }
+      const leftColumnX = margin;
+      const rightColumnX = pageWidth / 2 + 5; // Start right column at roughly middle of page
+      const leftColumnWidth = pageWidth / 2 - margin - 10;
+      const rightColumnWidth = pageWidth / 2 - margin - 10;
 
-      const filteredKeyValues = keyValues.filter(kv => kv.key.trim() !== '' && kv.value.trim() !== '');
-      if (filteredKeyValues.length > 0) {
-        checkPageBreak(20 + filteredKeyValues.length * 6);
-        doc.setFontSize(16);
-        doc.text('פרטים', pageWidth - margin, currentY, { align: 'right' });
-        currentY += 8;
-        doc.setFontSize(12);
-        filteredKeyValues.forEach(kv => {
-          checkPageBreak(6);
-          doc.text(`${kv.key}: ${kv.value}`, pageWidth - margin, currentY, { align: 'right' });
-          currentY += 6;
-        });
-        currentY += 9;
-      }
+      let leftColumnY = currentY;
+      let rightColumnY = currentY;
 
-      if (notes.trim() !== '') {
-        checkPageBreak(20);
-        doc.setFontSize(16);
-        doc.text('הערות', pageWidth - margin, currentY, { align: 'right' });
-        currentY += 8;
-        doc.setFontSize(12);
-        const splitNotes = doc.splitTextToSize(notes, pageWidth - margin * 2);
-        checkPageBreak(splitNotes.length * 6);
-        splitNotes.forEach((line: string) => {
-          checkPageBreak(6);
-          doc.text(line, pageWidth - margin, currentY, { align: 'right' });
-          currentY += 6;
-        });
-        currentY += 3;
-      }
-
+      // LEFT COLUMN: Coordinates (smaller font)
       if (includeCoordinates && points.length > 0) {
-        checkPageBreak(20);
         doc.setR2L(false); // Disable RTL for coordinates
         doc.setFont('helvetica', 'normal'); // Switch to default font for English
-        doc.setFontSize(16);
-        doc.text('Recorded Coordinates', margin, currentY);
-        currentY += 8;
-        doc.setFontSize(10);
+        doc.setFontSize(12);
+        doc.text('Recorded Coordinates', leftColumnX, leftColumnY);
+        leftColumnY += 6;
+        doc.setFontSize(8); // Smaller font for coordinates
         points.forEach((p, index) => {
-          checkPageBreak(5);
-          const line = `${index + 1}. Lat: ${p.point.lat.toFixed(6)}, Lng: ${p.point.lng.toFixed(6)} (${p.type})`;
-          doc.text(line, margin, currentY);
-          currentY += 5;
+          const line = `${index + 1}. Lat: ${p.point.lat.toFixed(6)},`;
+          const line2 = `   Lng: ${p.point.lng.toFixed(6)} (${p.type})`;
+          doc.text(line, leftColumnX, leftColumnY);
+          leftColumnY += 3.5;
+          doc.text(line2, leftColumnX, leftColumnY);
+          leftColumnY += 3.5;
+        });
+        // Restore font settings for right column
+        doc.setFont('Rubik', 'normal');
+        doc.setR2L(true);
+      }
+
+      // RIGHT COLUMN: Summary, Key-values, Notes
+      const filteredKeyValues = keyValues.filter(kv => kv.key.trim() !== '' && kv.value.trim() !== '');
+
+      // Summary section
+      if (points.length > 0) {
+        doc.setFontSize(14);
+        doc.text('סיכום', pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
+        doc.setFontSize(11);
+        doc.text(`סה"כ נקודות: ${points.length}`, pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 10;
+      }
+
+      // Key-value details
+      if (filteredKeyValues.length > 0) {
+        doc.setFontSize(14);
+        doc.text('פרטים', pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
+        doc.setFontSize(11);
+        filteredKeyValues.forEach(kv => {
+          doc.text(`${kv.key}: ${kv.value}`, pageWidth - margin, rightColumnY, { align: 'right' });
+          rightColumnY += 5;
+        });
+        rightColumnY += 5;
+      }
+
+      // Notes section
+      if (notes.trim() !== '') {
+        doc.setFontSize(14);
+        doc.text('הערות', pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
+        doc.setFontSize(11);
+        const splitNotes = doc.splitTextToSize(notes, rightColumnWidth);
+        splitNotes.forEach((line: string) => {
+          doc.text(line, pageWidth - margin, rightColumnY, { align: 'right' });
+          rightColumnY += 5;
         });
       }
 
-      // Open PDF in new tab
-      const pdfBlob = doc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      // Generate filename from title
+      const filename = cleanTitleForFilename(title) + '.pdf';
+
+      // Save PDF with cleaned filename
+      doc.save(filename);
 
       toast({
-        title: 'PDF נפתח בכרטיסייה חדשה',
-        description: 'הדוח שלך נפתח בכרטיסייה חדשה.',
+        title: 'PDF נשמר בהצלחה',
+        description: `הדוח שלך נשמר כ-${filename}`,
       });
 
     } catch (error) {
