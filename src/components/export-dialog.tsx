@@ -21,21 +21,6 @@ function formatNumberWithSeparators(num: number): string {
   return parts.join('.');
 }
 
-// Helper function to clean title for filename
-function cleanTitleForFilename(title: string): string {
-  if (!title || title.trim() === '') {
-    return 'area-report';
-  }
-
-  return title
-    .trim()
-    .replace(/\s+/g, '-')  // Replace spaces with dashes
-    .replace(/[^\w\u0590-\u05FF-]/g, '')  // Keep only word characters, Hebrew characters, and dashes
-    .replace(/-+/g, '-')  // Replace multiple dashes with single dash
-    .replace(/^-|-$/g, '')  // Remove leading/trailing dashes
-    .toLowerCase() || 'area-report';  // Fallback if result is empty
-}
-
 export interface KeyValue {
   id: number;
   key: string;
@@ -424,15 +409,14 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         });
       }
 
-      // Generate filename from title
-      const filename = cleanTitleForFilename(title) + '.pdf';
-
-      // Save PDF with cleaned filename
-      doc.save(filename);
+      // Open PDF in new tab
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
 
       toast({
-        title: 'PDF נשמר בהצלחה',
-        description: `הדוח שלך נשמר כ-${filename}`,
+        title: 'PDF נפתח בכרטיסייה חדשה',
+        description: 'הדוח שלך נפתח בכרטיסייה חדשה.',
       });
 
     } catch (error) {
