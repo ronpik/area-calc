@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import type { TrackedPoint } from '@/app/page';
 import { useToast } from '@/hooks/use-toast';
-import { loadRubikFont } from '@/fonts/Rubik-normal';
+import { loadRubikFonts } from "@/fonts/Rubik";
 
 // Helper function to format numbers with thousand separators
 function formatNumberWithSeparators(num: number): string {
@@ -47,7 +47,7 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
   useEffect(() => {
     try {
-      loadRubikFont();
+      loadRubikFonts();
       console.log('Hebrew font loaded successfully');
     } catch (error) {
       console.error('Error loading Hebrew font:', error);
@@ -308,9 +308,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       if (points.length >= 3) {
         doc.setFontSize(14);
         doc.setFont('Rubik', 'bold');
-        const formattedArea = formatNumberWithSeparators(area);
-        doc.text(`שטח כולל: ${formattedArea} מ"ר`, pageWidth - margin, currentY, { align: 'right' });
+        doc.text('שטח כולל:', pageWidth - margin, currentY, { align: 'right' });
+
         doc.setFont('Rubik', 'normal');
+        currentY += 8; // move to next line
+        const formattedArea = formatNumberWithSeparators(area);
+        doc.setFont('Rubik', 'normal');
+        doc.text(`${formattedArea} מ"ר `, pageWidth - margin, currentY, { align: 'right' });
         currentY += 10;
       }
 
