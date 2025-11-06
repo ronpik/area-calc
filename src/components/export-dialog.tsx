@@ -306,16 +306,31 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       currentY += 12;
 
       if (points.length >= 3) {
-        doc.setFontSize(14);
-        doc.setFont('Rubik', 'bold');
-        doc.text('שטח כולל:', pageWidth - margin, currentY, { align: 'right' });
 
-        doc.setFont('Rubik', 'normal');
-        currentY += 8; // move to next line
-        const formattedArea = formatNumberWithSeparators(area);
-        doc.setFont('Rubik', 'normal');
-        doc.text(`${formattedArea} מ"ר `, pageWidth - margin, currentY, { align: 'right' });
-        currentY += 10;
+          doc.setFontSize(14);
+          const labelText = 'שטח כולל:';
+          const formattedArea = formatNumberWithSeparators(area);
+          const valueText = `${formattedArea}  מ"ר`;
+          const x = pageWidth - margin;
+          const y = currentY;
+
+          // Draw the bold label text
+          doc.setFont('Rubik', 'bold');
+          doc.text(labelText, x, y, { align: 'right' });
+
+          // Measure the width of the label text for RTL layout
+          const labelWidth = doc.getTextWidth(labelText);
+
+          // Draw the normal value text, offset to the left of the label
+          doc.setFont('Rubik', 'normal');
+          doc.text(valueText, x - labelWidth - 2, y, { align: 'right' });
+
+          doc.setFontSize(10);
+          doc.setFont('Rubik', 'normal');
+          currentY += 5; // move to next line
+          doc.text(`)סה"כ נקודות: ${points.length}(`, pageWidth - margin, currentY, { align: 'right' });
+
+          currentY += 10; // move down to next line as needed
       }
 
       // Use fixed 4:3 aspect ratio to match capture dimensions
@@ -378,16 +393,6 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
 
       // RIGHT COLUMN: Summary, Key-values, Notes
       const filteredKeyValues = keyValues.filter(kv => kv.key.trim() !== '' && kv.value.trim() !== '');
-
-      // Summary section
-      if (points.length > 0) {
-        doc.setFontSize(14);
-        doc.text('סיכום', pageWidth - margin, rightColumnY, { align: 'right' });
-        rightColumnY += 6;
-        doc.setFontSize(11);
-        doc.text(`סה"כ נקודות: ${points.length}`, pageWidth - margin, rightColumnY, { align: 'right' });
-        rightColumnY += 10;
-      }
 
       // Key-value details
       if (filteredKeyValues.length > 0) {
