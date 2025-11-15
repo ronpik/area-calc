@@ -23,7 +23,35 @@ interface AreaMapProps {
 
 const ChangeView: FC<{ center: LatLngExpression; zoom: number }> = ({ center, zoom }) => {
   const map = useMap();
-  map.setView(center, zoom);
+  const prevCenterRef = React.useRef<LatLngExpression | null>(null);
+
+  React.useEffect(() => {
+    // Only update the center if it has changed significantly
+    // This prevents resetting zoom on every tiny GPS update
+    const [newLat, newLng] = Array.isArray(center) ? center : [center.lat, center.lng];
+
+    if (prevCenterRef.current) {
+      const [prevLat, prevLng] = Array.isArray(prevCenterRef.current)
+        ? prevCenterRef.current
+        : [prevCenterRef.current.lat, prevCenterRef.current.lng];
+
+      // Only update if the center moved more than ~10 meters (roughly 0.0001 degrees)
+      const latDiff = Math.abs(newLat - prevLat);
+      const lngDiff = Math.abs(newLng - prevLng);
+
+      if (latDiff > 0.0001 || lngDiff > 0.0001) {
+        // Get the user's current zoom level and preserve it
+        const currentZoom = map.getZoom();
+        map.setView(center, currentZoom, { animate: false });
+        prevCenterRef.current = center;
+      }
+    } else {
+      // First render - set initial view with provided zoom
+      map.setView(center, zoom, { animate: false });
+      prevCenterRef.current = center;
+    }
+  }, [center, zoom, map]);
+
   return null;
 }
 
