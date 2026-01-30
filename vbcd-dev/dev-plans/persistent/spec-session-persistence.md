@@ -1,12 +1,14 @@
 # Session Persistence Feature - Design Specification (Phase 2 & 3)
 
 **Status:** Ready for Implementation
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** 2025-01-30
 **Scope:** Phase 2 (Session Persistence) and Phase 3 (Session Management)
 **Depends On:** [Authentication Feature Spec (Phase 1)](../auth/spec-auth-feature.md)
 
 > **Prerequisite:** Phase 1 (Authentication) must be completed first. This spec assumes Firebase is configured and auth context is available.
+
+> **Note:** Account deletion (Phase 4) is documented in the [Auth Spec - Phase 4](../auth/spec-auth-feature.md#phase-4-account-management). This spec provides `deleteAllSessions()` (section 5.7) to support that flow.
 
 ---
 
@@ -775,6 +777,134 @@ function generateDefaultSessionName(existingSessionCount: number): string {
   return `Area ${existingSessionCount + 1}`;
 }
 ```
+
+### 6.5 My Sessions Modal
+
+**Trigger:** Click "My Sessions" from user dropdown
+
+```typescript
+// src/components/sessions-modal.tsx
+
+interface SessionsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onLoadSession: (session: SessionData) => void;
+}
+```
+
+**Session List State:**
+```
+┌─────────────────────────────────────────────────────┐
+│  My Sessions                                   [X]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ 🏠 Back Yard                                  │  │
+│  │ 245.7 m² · 12 points · Jan 28, 2025          │  │
+│  │                                    [⋮]       │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ 🌳 Front Garden                               │  │
+│  │ 89.3 m² · 8 points · Jan 29, 2025            │  │
+│  │                                    [⋮]       │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  [⋮] menu opens:                                    │
+│    • Rename                                         │
+│    • Delete                                         │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Empty State:**
+```
+┌─────────────────────────────────────────────────────┐
+│  My Sessions                                   [X]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│                    📭                               │
+│                                                     │
+│            No saved sessions yet                    │
+│                                                     │
+│   Start measuring an area and save it to access     │
+│   it later from any device.                         │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Loading State:**
+```
+┌─────────────────────────────────────────────────────┐
+│  My Sessions                                   [X]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│                    ◌                                │
+│              Loading sessions...                    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Error State:**
+```
+┌─────────────────────────────────────────────────────┐
+│  My Sessions                                   [X]  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│                    ⚠️                               │
+│                                                     │
+│         Failed to load sessions                     │
+│                                                     │
+│   ┌─────────────────────────────────────────────┐   │
+│   │              Retry                          │   │
+│   └─────────────────────────────────────────────┘   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### 6.6 Confirmation Dialog (Reusable)
+
+Used for: Load session (replace warning), Delete session
+
+```typescript
+// src/components/confirm-dialog.tsx
+
+interface ConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  variant?: 'default' | 'destructive';
+  onConfirm: () => void | Promise<void>;
+  loading?: boolean;
+}
+```
+
+**Dialog Layout:**
+```
+┌─────────────────────────────────────────┐
+│  {title}                           [X]  │
+├─────────────────────────────────────────┤
+│                                         │
+│  {message}                              │
+│                                         │
+│  ┌─────────────┐    ┌─────────────┐     │
+│  │   Cancel    │    │   {action}  │     │
+│  └─────────────┘    └─────────────┘     │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Confirmation Configurations:**
+
+| Use Case | Phase | Title | Message | Action Button |
+|----------|-------|-------|---------|---------------|
+| Load Session | 2 | Load "{name}"? | Your current points will be replaced. This cannot be undone. | Load (primary) |
+| Delete Session | 3 | Delete "{name}"? | This session will be permanently deleted. This cannot be undone. | Delete (destructive) |
+
+> **Note:** Delete Account confirmation is defined in [Auth Spec - Phase 4](../auth/spec-auth-feature.md#phase-4-account-management).
 
 ---
 
@@ -1552,11 +1682,37 @@ export type { SessionMeta, SessionData, UserSessionIndex, CurrentSessionState };
 
 ## Appendix A: i18n Keys (Session-Specific)
 
-Reference to auth spec section 9.2, plus these additions:
+Complete translations for session functionality (Phase 2/3).
 
 ```json
+// src/i18n/translations/en.json (session keys)
 {
   "sessions": {
+    "mySessions": "My Sessions",
+    "saveCurrent": "Save Current",
+    "noSessions": "No saved sessions yet",
+    "noSessionsHint": "Start measuring an area and save it to access it later from any device.",
+    "loadingSessions": "Loading sessions...",
+    "loadFailed": "Failed to load sessions",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveSession": "Save Session",
+    "saveNewSession": "Save New Session",
+    "sessionName": "Session Name",
+    "sessionSaved": "Session saved",
+    "sessionLoaded": "Loaded {name}",
+    "sessionDeleted": "Session deleted",
+    "sessionRenamed": "Session renamed",
+    "noPointsToSave": "No points to save",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete \"{name}\"?",
+    "deleteConfirmMessage": "This session will be permanently deleted. This cannot be undone.",
+    "loadConfirmTitle": "Load \"{name}\"?",
+    "loadConfirmMessage": "Your current points will be replaced. This cannot be undone.",
+    "load": "Load",
+    "points": "{count} points",
+    "area": "{value} m²",
     "currentSession": "Current: {name}",
     "unsavedChanges": "Unsaved changes",
     "startNew": "Start new measurement",
@@ -1565,9 +1721,69 @@ Reference to auth spec section 9.2, plus these additions:
     "saveAsNew": "Save as New Session",
     "saveAsNewHint": "Keep original, create a copy",
     "workingOn": "You're working on \"{name}\"",
-    "noPointsToSave": "No points to save",
     "sessionUpdated": "Session updated",
     "defaultName": "Area {n}"
+  },
+  "errors": {
+    "saveFailed": "Failed to save session",
+    "loadFailed": "Failed to load session",
+    "deleteFailed": "Failed to delete session",
+    "renameFailed": "Failed to rename session"
+  },
+  "common": {
+    "retry": "Retry"
+  }
+}
+```
+
+```json
+// src/i18n/translations/he.json (session keys)
+{
+  "sessions": {
+    "mySessions": "המדידות שלי",
+    "saveCurrent": "שמור נוכחי",
+    "noSessions": "אין מדידות שמורות",
+    "noSessionsHint": "התחל למדוד שטח ושמור אותו כדי לגשת אליו מכל מכשיר.",
+    "loadingSessions": "טוען מדידות...",
+    "loadFailed": "טעינת המדידות נכשלה",
+    "save": "שמור",
+    "cancel": "ביטול",
+    "saveSession": "שמור מדידה",
+    "saveNewSession": "שמור מדידה חדשה",
+    "sessionName": "שם המדידה",
+    "sessionSaved": "המדידה נשמרה",
+    "sessionLoaded": "נטען: {name}",
+    "sessionDeleted": "המדידה נמחקה",
+    "sessionRenamed": "שם המדידה שונה",
+    "noPointsToSave": "אין נקודות לשמירה",
+    "rename": "שנה שם",
+    "delete": "מחק",
+    "deleteConfirmTitle": "למחוק את \"{name}\"?",
+    "deleteConfirmMessage": "המדידה תימחק לצמיתות. פעולה זו לא ניתנת לביטול.",
+    "loadConfirmTitle": "לטעון את \"{name}\"?",
+    "loadConfirmMessage": "הנקודות הנוכחיות יוחלפו. פעולה זו לא ניתנת לביטול.",
+    "load": "טען",
+    "points": "{count} נקודות",
+    "area": "{value} מ\"ר",
+    "currentSession": "נוכחי: {name}",
+    "unsavedChanges": "שינויים לא שמורים",
+    "startNew": "התחל מדידה חדשה",
+    "updateExisting": "עדכן את \"{name}\"",
+    "updateExistingHint": "שמור שינויים במדידה קיימת",
+    "saveAsNew": "שמור כמדידה חדשה",
+    "saveAsNewHint": "שמור את המקור, צור עותק",
+    "workingOn": "אתה עובד על \"{name}\"",
+    "sessionUpdated": "המדידה עודכנה",
+    "defaultName": "שטח {n}"
+  },
+  "errors": {
+    "saveFailed": "שמירת המדידה נכשלה",
+    "loadFailed": "טעינת המדידה נכשלה",
+    "deleteFailed": "מחיקת המדידה נכשלה",
+    "renameFailed": "שינוי שם המדידה נכשל"
+  },
+  "common": {
+    "retry": "נסה שוב"
   }
 }
 ```
