@@ -1,9 +1,10 @@
 // src/components/login-modal.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ToastAction } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
@@ -18,9 +19,16 @@ interface LoginModalProps {
 
 export function LoginModal({ open, onOpenChange, onSuccess }: LoginModalProps) {
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const { signIn, error } = useAuth();
+  const { signIn, error, clearError } = useAuth();
   const { t, isRTL } = useI18n();
   const { toast } = useToast();
+
+  // Clear error when modal opens
+  useEffect(() => {
+    if (open) {
+      clearError();
+    }
+  }, [open, clearError]);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -31,11 +39,23 @@ export function LoginModal({ open, onOpenChange, onSuccess }: LoginModalProps) {
         title: t('auth.signedInAs', { name: 'User' }), // Will show actual name from auth state
       });
       onSuccess?.();
-    } catch (err) {
-      // Error already set in auth context
-      if (error && error !== 'popupBlocked') {
-        // Only show toast for non-popup errors (popup shows inline)
+    } catch (err: any) {
+      // Error is set in auth context for inline display
+      // Only show toast for network errors (with Retry button)
+      if (err.code === 'auth/network-request-failed') {
+        toast({
+          variant: 'destructive',
+          title: t('errors.networkError'),
+          action: (
+            <ToastAction altText={t('common.retry')} onClick={() => handleGoogleSignIn()}>
+              {t('common.retry')}
+            </ToastAction>
+          ),
+        });
       }
+      // popup-blocked: error shown inline (handled by error state display below)
+      // popup-closed-by-user: silent, error is null from auth context
+      // other errors: shown inline via generic error
     } finally {
       setIsSigningIn(false);
     }
@@ -63,8 +83,8 @@ export function LoginModal({ open, onOpenChange, onSuccess }: LoginModalProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Error message */}
-          {error && (
+          {/* Error message - show inline for popup-blocked and unknown errors, not for network errors (shown as toast) */}
+          {error && error !== 'networkError' && (
             <p className="text-sm text-destructive text-center">
               {t(`errors.${error}`)}
             </p>

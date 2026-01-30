@@ -78,9 +78,24 @@ jest.mock('@/components/ui/button', () => ({
     }, children),
 }));
 
+// Mock ToastAction component
+jest.mock('@/components/ui/toast', () => ({
+  ToastAction: ({ children, onClick, altText }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    altText?: string;
+  }) =>
+    React.createElement('button', {
+      onClick,
+      'data-testid': 'toast-action',
+      'aria-label': altText,
+    }, children),
+}));
+
 // Mock useAuth hook
 const mockSignIn = jest.fn();
 const mockSignOut = jest.fn();
+const mockClearError = jest.fn();
 let mockAuthError: string | null = null;
 
 jest.mock('@/contexts/auth-context', () => ({
@@ -90,6 +105,7 @@ jest.mock('@/contexts/auth-context', () => ({
     error: mockAuthError,
     signIn: mockSignIn,
     signOut: mockSignOut,
+    clearError: mockClearError,
   }),
 }));
 
@@ -186,6 +202,7 @@ describe('LoginModal Component', () => {
     mockIsRTL = false;
     mockSignIn.mockReset();
     mockSignOut.mockReset();
+    mockClearError.mockReset();
     mockT.mockClear();
     mockToast.mockClear();
   });
@@ -579,7 +596,8 @@ describe('LoginModal Component', () => {
       }
     });
 
-    it('should display network error message', () => {
+    it('should NOT display network error inline (shown via toast instead)', () => {
+      // Network errors are shown via toast, not inline (Task 4.1 change)
       const onOpenChange = jest.fn();
       const harness = createTestHarness();
 
@@ -588,12 +606,11 @@ describe('LoginModal Component', () => {
       harness.mount({ open: true, onOpenChange });
 
       try {
-        expect(mockT).toHaveBeenCalledWith('errors.networkError');
-
+        // Network error is excluded from inline display (error !== 'networkError')
         const errorParagraph = Array.from(document.body.querySelectorAll('p')).find(
           p => p.textContent?.includes('Network error')
         );
-        expect(errorParagraph).not.toBeNull();
+        expect(errorParagraph).toBeUndefined();
       } finally {
         harness.unmount();
       }
@@ -841,7 +858,7 @@ describe('LoginModal Component', () => {
       }
     });
 
-    it('should not show toast on sign-in failure', async () => {
+    it('should not show toast for popup-blocked error (shown inline)', async () => {
       const onOpenChange = jest.fn();
       const harness = createTestHarness();
 
@@ -862,7 +879,7 @@ describe('LoginModal Component', () => {
           googleButton!.click();
         });
 
-        // Toast should not be called on failure
+        // Toast should not be called for popup-blocked (shown inline instead)
         expect(mockToast).not.toHaveBeenCalled();
       } finally {
         harness.unmount();
@@ -972,6 +989,7 @@ describe('LoginModal Accessibility', () => {
     jest.clearAllMocks();
     mockAuthError = null;
     mockIsRTL = false;
+    mockClearError.mockReset();
   });
 
   it('should have proper dialog role', () => {

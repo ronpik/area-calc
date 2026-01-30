@@ -9,9 +9,19 @@ import {
   type User
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
-import type { AuthUser, UseAuth } from '@/types/auth';
+import type { AuthUser } from '@/types/auth';
 
-const AuthContext = createContext<UseAuth | null>(null);
+// Extended interface to include clearError
+interface UseAuthWithClearError {
+  user: AuthUser | null;
+  loading: boolean;
+  error: string | null;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+  clearError: () => void;
+}
+
+const AuthContext = createContext<UseAuthWithClearError | null>(null);
 
 function mapFirebaseUser(user: User): AuthUser {
   return {
@@ -72,14 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, error, signIn, signOut, clearError }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth(): UseAuth {
+export function useAuth(): UseAuthWithClearError {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');

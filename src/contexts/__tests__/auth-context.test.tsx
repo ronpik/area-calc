@@ -54,6 +54,7 @@ interface CapturedState {
   error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  clearError: () => void;
 }
 
 function createTestHarness() {
@@ -70,6 +71,7 @@ function createTestHarness() {
       error: authValue.error,
       signIn: authValue.signIn,
       signOut: authValue.signOut,
+      clearError: authValue.clearError,
     });
     return null;
   }
@@ -594,7 +596,7 @@ describe('Auth Context Provider', () => {
   });
 
   describe('Context Value Structure', () => {
-    it('should provide all required fields: user, loading, error, signIn, signOut', () => {
+    it('should provide all required fields: user, loading, error, signIn, signOut, clearError', () => {
       const harness = createTestHarness();
       harness.mount();
 
@@ -606,9 +608,11 @@ describe('Auth Context Provider', () => {
         expect(state).toHaveProperty('error');
         expect(state).toHaveProperty('signIn');
         expect(state).toHaveProperty('signOut');
+        expect(state).toHaveProperty('clearError');
 
         expect(typeof state.signIn).toBe('function');
         expect(typeof state.signOut).toBe('function');
+        expect(typeof state.clearError).toBe('function');
       } finally {
         harness.unmount();
       }
@@ -676,6 +680,84 @@ describe('Auth Context Provider', () => {
         });
 
         expect(thrownError).toBe(originalError);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('clearError Method (Task 4.1)', () => {
+    it('should clear error when clearError is called', async () => {
+      // First set an error
+      mockSignInWithPopup.mockRejectedValueOnce({ code: 'auth/popup-blocked' });
+
+      const harness = createTestHarness();
+      harness.mount();
+
+      try {
+        act(() => {
+          authStateCallback!(null);
+        });
+
+        const state = harness.getLatestState();
+
+        // Create an error
+        await act(async () => {
+          try {
+            await state.signIn();
+          } catch (e) {
+            // Expected
+          }
+        });
+
+        // Verify error is set
+        const stateWithError = harness.getLatestState();
+        expect(stateWithError.error).toBe('popupBlocked');
+
+        // Clear the error
+        act(() => {
+          stateWithError.clearError();
+        });
+
+        // Verify error is cleared
+        const stateAfterClear = harness.getLatestState();
+        expect(stateAfterClear.error).toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should be a no-op if error is already null', () => {
+      const harness = createTestHarness();
+      harness.mount();
+
+      try {
+        act(() => {
+          authStateCallback!(null);
+        });
+
+        const initialState = harness.getLatestState();
+        expect(initialState.error).toBeNull();
+
+        // Calling clearError when no error should not cause issues
+        act(() => {
+          initialState.clearError();
+        });
+
+        const stateAfter = harness.getLatestState();
+        expect(stateAfter.error).toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should provide clearError as a function', () => {
+      const harness = createTestHarness();
+      harness.mount();
+
+      try {
+        const state = harness.getLatestState();
+        expect(typeof state.clearError).toBe('function');
       } finally {
         harness.unmount();
       }
