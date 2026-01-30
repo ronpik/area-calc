@@ -40,7 +40,7 @@ Add user authentication to AreaCalc (Phase 1), enabling users to:
 **Future Phases:**
 - Phase 2: Save/load measurement sessions (see [Session Persistence Spec](../persistent/spec-session-persistence.md))
 - Phase 3: Manage sessions - rename, delete (see [Session Persistence Spec](../persistent/spec-session-persistence.md))
-- Phase 4: Account management - delete account (this spec, section 13)
+- Phase 4: Account management - delete account (see [Account Management Spec](./spec-account-management.md))
 
 ### 1.2 Key Decisions (Phase 1 - Auth Only)
 
@@ -792,94 +792,13 @@ See [Session Persistence Spec - Edge Cases](../persistent/spec-session-persisten
 
 **Scope:** Account deletion with full data cleanup
 
-**Deliverables:**
-1. Delete Account menu item in auth dropdown
-2. Delete Account confirmation dialog
-3. Re-authentication flow for `auth/requires-recent-login`
-4. Account deletion i18n strings
-5. `deleteAccount()` method in useAuth
+**See:** [Account Management Spec](./spec-account-management.md)
 
-**Delete Account Flow:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│ User clicks "Delete Account" from dropdown                  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Show Confirmation Dialog:                                   │
-│ "All your data will be permanently deleted."                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              │                               │
-              ▼                               ▼
-┌─────────────────────────┐     ┌─────────────────────────────┐
-│ User confirms           │     │ User cancels                │
-└─────────────────────────┘     └─────────────────────────────┘
-              │                               │
-              ▼                               ▼
-┌─────────────────────────┐     ┌─────────────────────────────┐
-│ 1. Show loading state   │     │ Close dialog (no action)    │
-│ 2. Delete all files in  │     └─────────────────────────────┘
-│    users/{uid}/ from    │
-│    Firebase Storage     │
-│    (deleteAllSessions)  │
-│ 3. Delete Firebase Auth │
-│    account              │
-│ 4. Sign out             │
-│ 5. Toast: "Account      │
-│    deleted"             │
-└─────────────────────────┘
-              │
-              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ Handle auth/requires-recent-login:                          │
-│ 1. Show message: "For security, please sign in again"       │
-│ 2. Trigger re-authentication (signInWithPopup)              │
-│ 3. Retry account deletion                                   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Confirmation Dialog Configuration:**
-
-| Use Case | Title | Message | Action Button |
-|----------|-------|---------|---------------|
-| Delete Account | Delete Account? | All your data will be permanently deleted. This action cannot be undone. | Delete Account (destructive) |
-
-**i18n Keys (Phase 4):**
-```json
-{
-  "auth": {
-    "deleteAccount": "Delete Account",
-    "deleteAccountConfirmTitle": "Delete Account?",
-    "deleteAccountConfirmMessage": "All your data will be permanently deleted. This action cannot be undone.",
-    "accountDeleted": "Account deleted",
-    "reAuthRequired": "For security, please sign in again to delete your account"
-  }
-}
-```
-
-```json
-// Hebrew
-{
-  "auth": {
-    "deleteAccount": "מחק חשבון",
-    "deleteAccountConfirmTitle": "למחוק את החשבון?",
-    "deleteAccountConfirmMessage": "כל הנתונים שלך יימחקו לצמיתות. פעולה זו לא ניתנת לביטול.",
-    "accountDeleted": "החשבון נמחק",
-    "reAuthRequired": "מטעמי אבטחה, אנא התחבר שוב כדי למחוק את החשבון"
-  }
-}
-```
-
-**Acceptance Criteria:**
-- User can delete their account from the dropdown menu
-- Confirmation dialog warns about permanent deletion
-- All user data in Firebase Storage is deleted
-- Firebase Auth account is deleted
-- Re-authentication is handled gracefully if required
-- User is signed out after successful deletion
+**Key Features:**
+- Delete Account menu item in user dropdown
+- Confirmation dialog with destructive warning
+- Re-authentication flow when Firebase requires it
+- Complete data cleanup (storage + auth account)
 
 ---
 

@@ -8,7 +8,7 @@
 
 > **Prerequisite:** Phase 1 (Authentication) must be completed first. This spec assumes Firebase is configured and auth context is available.
 
-> **Note:** Account deletion (Phase 4) is documented in the [Auth Spec - Phase 4](../auth/spec-auth-feature.md#phase-4-account-management). This spec provides `deleteAllSessions()` (section 5.7) to support that flow.
+> **Note:** Account deletion (Phase 4) is documented in the [Account Management Spec](../auth/spec-account-management.md). This spec provides `deleteAllSessions()` (section 5.7) to support that flow.
 
 ---
 
@@ -904,7 +904,7 @@ interface ConfirmDialogProps {
 | Load Session | 2 | Load "{name}"? | Your current points will be replaced. This cannot be undone. | Load (primary) |
 | Delete Session | 3 | Delete "{name}"? | This session will be permanently deleted. This cannot be undone. | Delete (destructive) |
 
-> **Note:** Delete Account confirmation is defined in [Auth Spec - Phase 4](../auth/spec-auth-feature.md#phase-4-account-management).
+> **Note:** Delete Account confirmation is defined in [Account Management Spec](../auth/spec-account-management.md).
 
 ---
 
