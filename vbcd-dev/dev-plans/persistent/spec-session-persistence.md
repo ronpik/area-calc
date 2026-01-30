@@ -1,9 +1,12 @@
-# Session Persistence Feature - Comprehensive Design Specification
+# Session Persistence Feature - Design Specification (Phase 2 & 3)
 
 **Status:** Ready for Implementation
 **Version:** 1.0
 **Last Updated:** 2025-01-30
-**Depends On:** [Authentication Feature Spec](../vbcd-dev/dev-plans/auth/spec-auth-feature.md)
+**Scope:** Phase 2 (Session Persistence) and Phase 3 (Session Management)
+**Depends On:** [Authentication Feature Spec (Phase 1)](../auth/spec-auth-feature.md)
+
+> **Prerequisite:** Phase 1 (Authentication) must be completed first. This spec assumes Firebase is configured and auth context is available.
 
 ---
 
