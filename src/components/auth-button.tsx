@@ -1,7 +1,7 @@
 // src/components/auth-button.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,6 +26,24 @@ export function AuthButton({ className }: AuthButtonProps) {
   const { user, loading, signOut } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
+
+  // Track if sign-in was triggered via modal (not page refresh)
+  const justSignedInRef = useRef(false);
+  const prevUserRef = useRef(user);
+
+  // Show toast when user signs in (not on page refresh)
+  useEffect(() => {
+    if (!prevUserRef.current && user && justSignedInRef.current) {
+      // User just signed in via modal
+      toast({
+        title: t('auth.signedInAs', {
+          name: user.displayName || user.email || 'User'
+        }),
+      });
+      justSignedInRef.current = false;
+    }
+    prevUserRef.current = user;
+  }, [user, t, toast]);
 
   const handleSignOut = async () => {
     try {
@@ -72,6 +90,9 @@ export function AuthButton({ className }: AuthButtonProps) {
         <LoginModal
           open={loginModalOpen}
           onOpenChange={setLoginModalOpen}
+          onSuccess={() => {
+            justSignedInRef.current = true;
+          }}
         />
       </>
     );

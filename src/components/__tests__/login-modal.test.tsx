@@ -733,7 +733,9 @@ describe('LoginModal Component', () => {
       }
     });
 
-    it('should show toast notification on successful sign-in', async () => {
+    it('should NOT show success toast (toast is shown by AuthButton via onSuccess)', async () => {
+      // Note: Per Task 4.2, success toast was moved from login-modal to auth-button
+      // The login-modal now only calls onSuccess callback, and auth-button shows the toast
       const onOpenChange = jest.fn();
       const harness = createTestHarness();
 
@@ -754,13 +756,12 @@ describe('LoginModal Component', () => {
           googleButton!.click();
         });
 
-        // Toast should be called
-        expect(mockToast).toHaveBeenCalled();
-        expect(mockToast).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: expect.stringContaining('Signed in as'),
-          })
+        // Toast should NOT be called by login-modal for success case
+        // (only network error shows toast in login-modal)
+        const successToastCalls = mockToast.mock.calls.filter(
+          call => call[0]?.title?.includes?.('Signed in')
         );
+        expect(successToastCalls.length).toBe(0);
       } finally {
         harness.unmount();
       }

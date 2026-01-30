@@ -35,9 +35,6 @@ export function LoginModal({ open, onOpenChange, onSuccess }: LoginModalProps) {
     try {
       await signIn();
       onOpenChange(false);
-      toast({
-        title: t('auth.signedInAs', { name: 'User' }), // Will show actual name from auth state
-      });
       onSuccess?.();
     } catch (err: any) {
       // Error is set in auth context for inline display
