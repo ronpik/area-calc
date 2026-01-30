@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExportDialog, type KeyValue } from '@/components/export-dialog';
+import { AuthButton } from '@/components/auth-button';
 
 const AreaMap = dynamic(() => import('@/components/area-map').then((mod) => mod.AreaMap), {
   ssr: false,
@@ -278,6 +279,8 @@ export default function Home() {
       ) : <div className="h-full w-full bg-muted animate-pulse" />}
       
       <ExportDialog open={isExporting} onOpenChange={setIsExporting} area={calculatedArea} points={filteredPoints} />
+
+      <AuthButton className="absolute top-4 right-4 z-[1000]" />
 
       <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:max-w-md z-[1000]">
         {!isPanelExpanded ? (
