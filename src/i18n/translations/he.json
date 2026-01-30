@@ -1,0 +1,21 @@
+{
+  "auth": {
+    "signIn": "התחברות",
+    "signOut": "התנתקות",
+    "signedInAs": "מחובר כ-{name}",
+    "signedOut": "התנתקת",
+    "continueWithGoogle": "המשך עם Google",
+    "signInTitle": "התחברות",
+    "signInSubtitle": "שמור את המדידות שלך וגש אליהן מכל מכשיר.",
+    "termsNotice": "בהתחברות, אתה מסכים לתנאי השימוש ומדיניות הפרטיות"
+  },
+  "errors": {
+    "popupBlocked": "אנא אפשר חלונות קופצים לאתר זה כדי להתחבר",
+    "networkError": "שגיאת רשת. אנא בדוק את החיבור.",
+    "unknownError": "משהו השתבש. אנא נסה שוב."
+  },
+  "common": {
+    "cancel": "ביטול",
+    "retry": "נסה שוב"
+  }
+}

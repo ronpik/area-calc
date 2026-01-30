@@ -1,0 +1,21 @@
+{
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signedInAs": "Signed in as {name}",
+    "signedOut": "Signed out",
+    "continueWithGoogle": "Continue with Google",
+    "signInTitle": "Sign In",
+    "signInSubtitle": "Save your measurements and access them from any device.",
+    "termsNotice": "By signing in, you agree to our Terms of Service and Privacy Policy"
+  },
+  "errors": {
+    "popupBlocked": "Please allow popups for this site to sign in",
+    "networkError": "Network error. Please check your connection.",
+    "unknownError": "Something went wrong. Please try again."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "retry": "Retry"
+  }
+}
