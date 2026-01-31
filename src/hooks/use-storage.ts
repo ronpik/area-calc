@@ -7,7 +7,7 @@ import { ref, uploadString, getDownloadURL, deleteObject, listAll } from 'fireba
 import { storage, auth } from '@/lib/firebase';
 import { getIndexPath, getSessionPath, getUserBasePath } from '@/lib/storage-paths';
 import { migrateSessionData, migrateIndex } from '@/lib/session-migration';
-import { mapFirebaseError, notAuthenticatedError, isStorageError } from '@/lib/storage-errors';
+import { mapFirebaseError, notAuthenticatedError, sessionNotFoundError, isStorageError } from '@/lib/storage-errors';
 import type {
   SessionMeta,
   SessionData,
@@ -20,6 +20,7 @@ import type { TrackedPoint } from '@/app/page';
 interface UseStorageReturn {
   // Index operations
   fetchIndex: () => Promise<UserSessionIndex | null>;
+  removeFromIndex: (sessionId: string) => Promise<void>;
 
   // Session CRUD
   saveNewSession: (name: string, points: TrackedPoint[], area: number) => Promise<SessionMeta>;
@@ -53,13 +54,37 @@ export function useStorage(): UseStorageReturn {
   const clearError = useCallback(() => setError(null), []);
 
   // Internal: fetch index without state management
+  // Handles corruption by returning empty index and preserving session files
   const fetchIndexInternal = useCallback(async (uid: string): Promise<UserSessionIndex | null> => {
     const indexRef = ref(storage, getIndexPath(uid));
     try {
       const url = await getDownloadURL(indexRef);
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch index');
-      const data = await response.json();
+      const rawText = await response.text();
+
+      // Attempt to parse JSON - handle corruption gracefully
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        // Index is corrupted - log for debugging and return empty index
+        console.error('[use-storage] Index file is corrupted, returning empty index:', parseError);
+        return createEmptyIndex();
+      }
+
+      // Validate basic index structure
+      if (!data || typeof data !== 'object') {
+        console.error('[use-storage] Index data is not an object, returning empty index');
+        return createEmptyIndex();
+      }
+
+      // If sessions array is corrupted, return empty index but preserve what we can
+      if (data.sessions && !Array.isArray(data.sessions)) {
+        console.error('[use-storage] Index sessions is not an array, returning empty index');
+        return createEmptyIndex();
+      }
+
       return migrateIndex(data);
     } catch (err) {
       if (isStorageError(err) && err.code === 'storage/object-not-found') {
@@ -95,7 +120,10 @@ export function useStorage(): UseStorageReturn {
   ): Promise<SessionMeta> => {
     const user = auth.currentUser;
     if (!user) throw notAuthenticatedError();
-    if (points.length === 0) throw new Error('Cannot save session with no points');
+    if (points.length === 0) {
+      console.error('[use-storage] Attempted to save session with no points');
+      throw new Error('Cannot save session with no points');
+    }
 
     setLoading(true);
     setError(null);
@@ -157,7 +185,10 @@ export function useStorage(): UseStorageReturn {
   ): Promise<SessionMeta> => {
     const user = auth.currentUser;
     if (!user) throw notAuthenticatedError();
-    if (points.length === 0) throw new Error('Cannot save session with no points');
+    if (points.length === 0) {
+      console.error('[use-storage] Attempted to update session with no points');
+      throw new Error('Cannot save session with no points');
+    }
 
     setLoading(true);
     setError(null);
@@ -239,6 +270,13 @@ export function useStorage(): UseStorageReturn {
       const data = await response.json();
       return migrateSessionData(data);
     } catch (err) {
+      // Check if session file is missing
+      if (isStorageError(err) && err.code === 'storage/object-not-found') {
+        console.error('[use-storage] Session file not found:', sessionId);
+        const error = sessionNotFoundError();
+        setError(error);
+        throw error;
+      }
       const storageError = mapFirebaseError(err);
       setError(storageError);
       throw storageError;
@@ -332,6 +370,39 @@ export function useStorage(): UseStorageReturn {
     }
   }, [fetchIndexInternal]);
 
+  // Remove a session entry from the index (without deleting the session file)
+  // Used when a session file is found to be missing
+  const removeFromIndex = useCallback(async (sessionId: string): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) throw notAuthenticatedError();
+
+    setLoading(true);
+    setError(null);
+    try {
+      const index = await fetchIndexInternal(user.uid);
+      if (index) {
+        const originalLength = index.sessions.length;
+        index.sessions = index.sessions.filter(s => s.id !== sessionId);
+
+        // Only update if we actually removed something
+        if (index.sessions.length < originalLength) {
+          index.lastModified = new Date().toISOString();
+          const indexRef = ref(storage, getIndexPath(user.uid));
+          await uploadString(indexRef, JSON.stringify(index), 'raw', {
+            contentType: 'application/json'
+          });
+          console.log('[use-storage] Removed missing session from index:', sessionId);
+        }
+      }
+    } catch (err) {
+      const storageError = mapFirebaseError(err);
+      setError(storageError);
+      throw storageError;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchIndexInternal]);
+
   const deleteAllSessions = useCallback(async (): Promise<void> => {
     const user = auth.currentUser;
     if (!user) throw notAuthenticatedError();
@@ -369,6 +440,7 @@ export function useStorage(): UseStorageReturn {
 
   return {
     fetchIndex,
+    removeFromIndex,
     saveNewSession,
     updateSession,
     loadSession,

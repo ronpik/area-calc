@@ -63,7 +63,11 @@
     "saveAsNewHint": "Keep original, create a copy",
     "workingOn": "You're working on \"{name}\"",
     "sessionUpdated": "Session updated",
-    "defaultName": "Area {n}"
+    "defaultName": "Area {n}",
+    "sessionMissing": "Session file not found",
+    "sessionMissingMessage": "This session's data file is missing. Would you like to remove it from the list?",
+    "removeFromList": "Remove from List",
+    "nameTooLong": "Name must be {max} characters or less"
   },
   "errors": {
     "popupBlocked": "Please allow popups for this site to sign in",

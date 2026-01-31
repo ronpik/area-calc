@@ -75,3 +75,25 @@ export function notAuthenticatedError(): StorageError {
     retry: false
   };
 }
+
+/**
+ * Create a "session not found" error
+ */
+export function sessionNotFoundError(): StorageError {
+  return {
+    code: 'SESSION_NOT_FOUND',
+    message: 'Session not found',
+    retry: false
+  };
+}
+
+/**
+ * Create an "index corrupted" error
+ */
+export function indexCorruptedError(): StorageError {
+  return {
+    code: 'INDEX_CORRUPTED',
+    message: 'Index data is corrupted',
+    retry: false
+  };
+}

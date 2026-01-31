@@ -21,6 +21,7 @@ import {
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useI18n } from '@/contexts/i18n-context';
 import { useStorage } from '@/hooks/use-storage';
+import type { StorageError } from '@/types/storage-errors';
 import { cn } from '@/lib/utils';
 import {
   Loader2,
@@ -49,7 +50,7 @@ export function SessionsModal({
   hasCurrentPoints,
 }: SessionsModalProps) {
   const { t, isRTL } = useI18n();
-  const { fetchIndex, loadSession, renameSession, deleteSession, loading, error, clearError } = useStorage();
+  const { fetchIndex, loadSession, renameSession, deleteSession, removeFromIndex, loading, error, clearError } = useStorage();
 
   // Sessions list state
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
@@ -69,6 +70,10 @@ export function SessionsModal({
   // Load confirmation state
   const [loadConfirmSession, setLoadConfirmSession] = useState<SessionMeta | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Missing session state - when trying to load a session whose file is missing
+  const [missingSession, setMissingSession] = useState<SessionMeta | null>(null);
+  const [isRemovingFromIndex, setIsRemovingFromIndex] = useState(false);
 
   // Fetch sessions when modal opens
   const fetchSessions = useCallback(async () => {
@@ -119,10 +124,33 @@ export function SessionsModal({
       onLoadSession(sessionData, session);
       onOpenChange(false);
     } catch (err) {
-      // Error is handled by useStorage hook
+      // Check if this is a "session not found" error
+      const storageError = err as StorageError;
+      if (storageError && storageError.code === 'SESSION_NOT_FOUND') {
+        // Session file is missing - offer to remove from index
+        setMissingSession(session);
+      }
+      // Other errors are handled by useStorage hook
     } finally {
       setIsLoading(false);
       setLoadConfirmSession(null);
+    }
+  };
+
+  // Handle removing missing session from index
+  const handleRemoveMissingSession = async () => {
+    if (!missingSession) return;
+
+    setIsRemovingFromIndex(true);
+    try {
+      await removeFromIndex(missingSession.id);
+      // Update local state to remove the session
+      setSessions(prev => prev.filter(s => s.id !== missingSession.id));
+      setMissingSession(null);
+    } catch (err) {
+      // Error is handled by useStorage hook
+    } finally {
+      setIsRemovingFromIndex(false);
     }
   };
 
@@ -141,6 +169,7 @@ export function SessionsModal({
   };
 
   // Submit rename
+  // Unicode characters are allowed - we just validate length after trim
   const handleSubmitRename = async (sessionId: string) => {
     const trimmed = renameValue.trim();
 
@@ -150,7 +179,7 @@ export function SessionsModal({
       return;
     }
     if (trimmed.length > SESSION_NAME_MAX_LENGTH) {
-      setRenameError(`Maximum ${SESSION_NAME_MAX_LENGTH} characters`);
+      setRenameError(t('sessions.nameTooLong', { max: SESSION_NAME_MAX_LENGTH }));
       return;
     }
 
@@ -406,6 +435,20 @@ export function SessionsModal({
           }
         }}
         loading={isLoading}
+      />
+
+      {/* Missing session dialog - offer to remove from index */}
+      <ConfirmDialog
+        open={missingSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setMissingSession(null);
+        }}
+        title={t('sessions.sessionMissing')}
+        message={t('sessions.sessionMissingMessage')}
+        confirmLabel={t('sessions.removeFromList')}
+        variant="default"
+        onConfirm={handleRemoveMissingSession}
+        loading={isRemovingFromIndex}
       />
     </>
   );

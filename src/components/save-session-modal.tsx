@@ -66,13 +66,14 @@ export function SaveSessionModal({
   }, [open, currentSession, sessionCount, t]);
 
   // Validate session name
+  // Unicode characters are allowed - we just validate length after trim
   const validateName = (name: string): string | null => {
     const trimmed = name.trim();
     if (trimmed.length === 0) {
       return t('sessions.sessionName'); // Use field name as error hint
     }
     if (trimmed.length > SESSION_NAME_MAX_LENGTH) {
-      return `Maximum ${SESSION_NAME_MAX_LENGTH} characters`;
+      return t('sessions.nameTooLong', { max: SESSION_NAME_MAX_LENGTH });
     }
     return null;
   };

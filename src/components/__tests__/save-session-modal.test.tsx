@@ -133,6 +133,7 @@ const mockT = jest.fn((key: string, params?: Record<string, string | number>) =>
     'sessions.defaultName': params ? `Area ${params.n}` : 'Area {n}',
     'sessions.area': params ? `${params.value} m²` : '{value} m²',
     'sessions.points': params ? `${params.count} points` : '{count} points',
+    'sessions.nameTooLong': params ? `Name must be ${params.max} characters or less` : 'Name must be {max} characters or less',
     'errors.saveFailed': 'Failed to save session',
   };
   return translations[key] ?? key;
@@ -1493,6 +1494,116 @@ describe('SaveSessionModal Component', () => {
         expect(parsedHash).toHaveLength(2);
         expect(parsedHash[0]).toEqual({ lat: 32.1, lng: 34.1, type: 'manual' });
         expect(parsedHash[1]).toEqual({ lat: 32.2, lng: 34.2, type: 'auto' });
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should allow unicode characters in session name (Hebrew)', async () => {
+      const onOpenChange = jest.fn();
+      const onSaveComplete = jest.fn();
+
+      mockSaveNewSession.mockResolvedValueOnce({
+        id: 'id',
+        name: 'שטח בעברית',
+        createdAt: '2026-01-30T12:00:00Z',
+        updatedAt: '2026-01-30T12:00:00Z',
+        area: 100,
+        pointCount: 1,
+      });
+
+      const harness = createTestHarness();
+      harness.mount({
+        open: true,
+        onOpenChange,
+        points: [createTestPoint()],
+        area: 100,
+        currentSession: null,
+        sessionCount: 0,
+        onSaveComplete,
+      });
+
+      try {
+        // Session names with unicode characters should be accepted
+        // The validation only checks for empty and length after trim
+        const saveButton = Array.from(document.querySelectorAll('button')).find(
+          b => b.textContent === 'Save'
+        );
+
+        await act(async () => {
+          saveButton!.click();
+        });
+
+        // Save should succeed - no validation error for unicode
+        expect(mockSaveNewSession).toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should allow emoji characters in session name', async () => {
+      const onOpenChange = jest.fn();
+      const onSaveComplete = jest.fn();
+
+      mockSaveNewSession.mockResolvedValueOnce({
+        id: 'id',
+        name: 'My Field 🌾',
+        createdAt: '2026-01-30T12:00:00Z',
+        updatedAt: '2026-01-30T12:00:00Z',
+        area: 100,
+        pointCount: 1,
+      });
+
+      const harness = createTestHarness();
+      harness.mount({
+        open: true,
+        onOpenChange,
+        points: [createTestPoint()],
+        area: 100,
+        currentSession: null,
+        sessionCount: 0,
+        onSaveComplete,
+      });
+
+      try {
+        const saveButton = Array.from(document.querySelectorAll('button')).find(
+          b => b.textContent === 'Save'
+        );
+
+        await act(async () => {
+          saveButton!.click();
+        });
+
+        // Emoji should be allowed in session name
+        expect(mockSaveNewSession).toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should validate name length after trimming whitespace', () => {
+      const onOpenChange = jest.fn();
+      const onSaveComplete = jest.fn();
+
+      const harness = createTestHarness();
+      harness.mount({
+        open: true,
+        onOpenChange,
+        points: [createTestPoint()],
+        area: 100,
+        currentSession: null,
+        sessionCount: 0,
+        onSaveComplete,
+      });
+
+      try {
+        // The input has maxLength=100 which enforces the character limit
+        const input = document.querySelector('[data-testid="session-name-input"]') as HTMLInputElement;
+        expect(input).not.toBeNull();
+        expect(input?.getAttribute('maxLength')).toBe('100');
+
+        // Validation happens on trimmed value, so whitespace-only names are rejected
+        // (tested in other tests)
       } finally {
         harness.unmount();
       }

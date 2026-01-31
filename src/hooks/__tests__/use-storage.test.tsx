@@ -71,6 +71,7 @@ import type { TrackedPoint } from '@/app/page';
 // Test helper to capture hook state
 interface CapturedState {
   fetchIndex: () => Promise<UserSessionIndex | null>;
+  removeFromIndex: (sessionId: string) => Promise<void>;
   saveNewSession: (name: string, points: TrackedPoint[], area: number) => Promise<SessionMeta>;
   updateSession: (sessionId: string, points: TrackedPoint[], area: number) => Promise<SessionMeta>;
   loadSession: (sessionId: string) => Promise<any>;
@@ -91,6 +92,7 @@ function createTestHarness() {
     const storageValue = useStorage();
     states.push({
       fetchIndex: storageValue.fetchIndex,
+      removeFromIndex: storageValue.removeFromIndex,
       saveNewSession: storageValue.saveNewSession,
       updateSession: storageValue.updateSession,
       loadSession: storageValue.loadSession,
@@ -380,7 +382,7 @@ describe('useStorage Hook', () => {
       mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(existingIndex),
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
       });
       const harness = createTestHarness();
       harness.mount();
@@ -402,7 +404,7 @@ describe('useStorage Hook', () => {
       mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(v0Index),
+        text: () => Promise.resolve(JSON.stringify(v0Index)),
       });
       const harness = createTestHarness();
       harness.mount();
@@ -414,6 +416,257 @@ describe('useStorage Hook', () => {
         expect(result?.version).toBe(INDEX_VERSION);
         expect(result?.sessions).toHaveLength(2);
         expect(result?.lastModified).toBeDefined();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should return empty index when index JSON is corrupted (invalid JSON)', async () => {
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('this is not valid JSON{{{'),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        let result: UserSessionIndex | null = null;
+        await act(async () => {
+          result = await harness.getLatestState().fetchIndex();
+        });
+        // Should return empty index instead of throwing
+        expect(result).not.toBeNull();
+        expect(result?.version).toBe(INDEX_VERSION);
+        expect(result?.sessions).toEqual([]);
+        expect(harness.getLatestState().error).toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should return empty index when index data is not an object', async () => {
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('"just a string"'),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        let result: UserSessionIndex | null = null;
+        await act(async () => {
+          result = await harness.getLatestState().fetchIndex();
+        });
+        expect(result).not.toBeNull();
+        expect(result?.sessions).toEqual([]);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should return empty index when sessions property is not an array', async () => {
+      const corruptedIndex = { version: 1, sessions: 'not an array', lastModified: '2026-01-30T10:00:00Z' };
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(corruptedIndex)),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        let result: UserSessionIndex | null = null;
+        await act(async () => {
+          result = await harness.getLatestState().fetchIndex();
+        });
+        expect(result).not.toBeNull();
+        expect(result?.sessions).toEqual([]);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should preserve error state as null on graceful corruption recovery', async () => {
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve('{{invalid}}'),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        await act(async () => {
+          await harness.getLatestState().fetchIndex();
+        });
+        // Error should NOT be set - graceful degradation
+        expect(harness.getLatestState().error).toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('loadSession', () => {
+    beforeEach(() => {
+      resetMocks();
+      mockAuth.currentUser = { uid: 'test-user-123' };
+    });
+
+    it('should throw SESSION_NOT_FOUND error when session file does not exist', async () => {
+      mockGetDownloadURL.mockRejectedValueOnce(
+        createFirebaseError('storage/object-not-found')
+      );
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        let thrownError: any = null;
+        await act(async () => {
+          try {
+            await harness.getLatestState().loadSession('missing-session-id');
+          } catch (e) {
+            thrownError = e;
+          }
+        });
+        expect(thrownError?.code).toBe('SESSION_NOT_FOUND');
+        expect(harness.getLatestState().error?.code).toBe('SESSION_NOT_FOUND');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should set error state with SESSION_NOT_FOUND when session file is missing', async () => {
+      mockGetDownloadURL.mockRejectedValueOnce(
+        createFirebaseError('storage/object-not-found')
+      );
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        await act(async () => {
+          try {
+            await harness.getLatestState().loadSession('missing-id');
+          } catch (e) {
+            // Expected to throw
+          }
+        });
+        expect(harness.getLatestState().error).not.toBeNull();
+        expect(harness.getLatestState().error?.code).toBe('SESSION_NOT_FOUND');
+        expect(harness.getLatestState().error?.retry).toBe(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('removeFromIndex', () => {
+    beforeEach(() => {
+      resetMocks();
+      mockAuth.currentUser = { uid: 'test-user-123' };
+    });
+
+    it('should throw NOT_AUTHENTICATED error when not authenticated', async () => {
+      mockAuth.currentUser = null;
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        let thrownError: any = null;
+        await act(async () => {
+          try {
+            await harness.getLatestState().removeFromIndex('session-id');
+          } catch (e) {
+            thrownError = e;
+          }
+        });
+        expect(thrownError?.code).toBe('NOT_AUTHENTICATED');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should remove session entry from index without deleting session file', async () => {
+      const existingIndex = createTestIndex([
+        createTestSessionMeta('session-1'),
+        createTestSessionMeta('session-2'),
+      ]);
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        await act(async () => {
+          await harness.getLatestState().removeFromIndex('session-1');
+        });
+        // Should upload index with session removed
+        expect(mockUploadString).toHaveBeenCalledTimes(1);
+        const uploadedIndex = JSON.parse(mockUploadString.mock.calls[0][1]);
+        expect(uploadedIndex.sessions).toHaveLength(1);
+        expect(uploadedIndex.sessions[0].id).toBe('session-2');
+        // Should NOT call deleteObject (we're only updating index)
+        expect(mockDeleteObject).not.toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not update index if session ID not found', async () => {
+      const existingIndex = createTestIndex([
+        createTestSessionMeta('session-1'),
+      ]);
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        await act(async () => {
+          await harness.getLatestState().removeFromIndex('non-existent-session');
+        });
+        // Should NOT upload because nothing changed
+        expect(mockUploadString).not.toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should update lastModified when removing session from index', async () => {
+      const existingIndex = createTestIndex([createTestSessionMeta('session-1')]);
+      mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
+      });
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        const beforeTime = new Date().toISOString();
+        await act(async () => {
+          await harness.getLatestState().removeFromIndex('session-1');
+        });
+        const uploadedIndex = JSON.parse(mockUploadString.mock.calls[0][1]);
+        expect(new Date(uploadedIndex.lastModified).getTime()).toBeGreaterThanOrEqual(
+          new Date(beforeTime).getTime() - 1000
+        );
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should handle index not existing gracefully', async () => {
+      mockGetDownloadURL.mockRejectedValueOnce(
+        createFirebaseError('storage/object-not-found')
+      );
+      const harness = createTestHarness();
+      harness.mount();
+      try {
+        await act(async () => {
+          await harness.getLatestState().removeFromIndex('session-id');
+        });
+        // Should not throw and not try to upload
+        expect(mockUploadString).not.toHaveBeenCalled();
+        expect(harness.getLatestState().error).toBeNull();
       } finally {
         harness.unmount();
       }
@@ -472,7 +725,7 @@ describe('useStorage Hook', () => {
       mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(existingIndex),
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
       });
       const harness = createTestHarness();
       harness.mount();
@@ -734,7 +987,7 @@ describe('useStorage Hook', () => {
       mockGetDownloadURL.mockResolvedValueOnce('https://example.com/index.json');
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(existingIndex),
+        text: () => Promise.resolve(JSON.stringify(existingIndex)),
       });
       const harness = createTestHarness();
       harness.mount();

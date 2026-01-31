@@ -15,6 +15,8 @@ import {
   isStorageError,
   mapFirebaseError,
   notAuthenticatedError,
+  sessionNotFoundError,
+  indexCorruptedError,
 } from '@/lib/storage-errors';
 import type { StorageError } from '@/types/storage-errors';
 
@@ -359,6 +361,68 @@ describe('Storage Errors Module', () => {
       const result = notAuthenticatedError();
       expect(result.retry).toBe(false);
     });
+
+    it('should mark sessionNotFoundError as non-retryable', () => {
+      const result = sessionNotFoundError();
+      expect(result.retry).toBe(false);
+    });
+
+    it('should mark indexCorruptedError as non-retryable', () => {
+      const result = indexCorruptedError();
+      expect(result.retry).toBe(false);
+    });
+  });
+
+  describe('sessionNotFoundError', () => {
+    it('should return SESSION_NOT_FOUND error with retry=false', () => {
+      const result = sessionNotFoundError();
+
+      expect(result.code).toBe('SESSION_NOT_FOUND');
+      expect(result.message).toBe('Session not found');
+      expect(result.retry).toBe(false);
+    });
+
+    it('should return an object conforming to StorageError interface', () => {
+      const result: StorageError = sessionNotFoundError();
+
+      expect(result).toHaveProperty('code');
+      expect(result).toHaveProperty('message');
+      expect(result).toHaveProperty('retry');
+    });
+
+    it('should return a new object on each call', () => {
+      const result1 = sessionNotFoundError();
+      const result2 = sessionNotFoundError();
+
+      expect(result1).not.toBe(result2);
+      expect(result1).toEqual(result2);
+    });
+  });
+
+  describe('indexCorruptedError', () => {
+    it('should return INDEX_CORRUPTED error with retry=false', () => {
+      const result = indexCorruptedError();
+
+      expect(result.code).toBe('INDEX_CORRUPTED');
+      expect(result.message).toBe('Index data is corrupted');
+      expect(result.retry).toBe(false);
+    });
+
+    it('should return an object conforming to StorageError interface', () => {
+      const result: StorageError = indexCorruptedError();
+
+      expect(result).toHaveProperty('code');
+      expect(result).toHaveProperty('message');
+      expect(result).toHaveProperty('retry');
+    });
+
+    it('should return a new object on each call', () => {
+      const result1 = indexCorruptedError();
+      const result2 = indexCorruptedError();
+
+      expect(result1).not.toBe(result2);
+      expect(result1).toEqual(result2);
+    });
   });
 });
 
@@ -370,6 +434,7 @@ describe('Storage Error Types', () => {
         'NOT_AUTHENTICATED',
         'SESSION_NOT_FOUND',
         'INDEX_NOT_FOUND',
+        'INDEX_CORRUPTED',
         'NETWORK_ERROR',
         'PERMISSION_DENIED',
         'QUOTA_EXCEEDED',
@@ -377,10 +442,11 @@ describe('Storage Error Types', () => {
         'UNKNOWN',
       ];
 
-      expect(validCodes).toHaveLength(8);
+      expect(validCodes).toHaveLength(9);
       expect(validCodes).toContain('NOT_AUTHENTICATED');
       expect(validCodes).toContain('SESSION_NOT_FOUND');
       expect(validCodes).toContain('INDEX_NOT_FOUND');
+      expect(validCodes).toContain('INDEX_CORRUPTED');
       expect(validCodes).toContain('NETWORK_ERROR');
       expect(validCodes).toContain('PERMISSION_DENIED');
       expect(validCodes).toContain('QUOTA_EXCEEDED');
