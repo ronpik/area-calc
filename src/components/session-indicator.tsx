@@ -1,22 +1,38 @@
 // src/components/session-indicator.tsx
 'use client';
 
+import { useState } from 'react';
 import { FileIcon, PlusIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useI18n } from '@/contexts/i18n-context';
 import type { CurrentSessionState } from '@/types/session';
 
 interface SessionIndicatorProps {
   currentSession: CurrentSessionState | null;
   hasUnsavedChanges: boolean;
-  onClear: () => void;  // Start new measurement
+  onNewSession: () => void;  // Start new measurement
+  hasPoints: boolean;  // Whether there are points to warn about
 }
 
 export function SessionIndicator({
   currentSession,
   hasUnsavedChanges,
-  onClear
+  onNewSession,
+  hasPoints
 }: SessionIndicatorProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const { t } = useI18n();
+
   if (!currentSession) return null;
+
+  const handleNewSessionClick = () => {
+    if (hasPoints) {
+      setConfirmOpen(true);
+    } else {
+      onNewSession();
+    }
+  };
 
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -30,11 +46,23 @@ export function SessionIndicator({
       <Button
         variant="ghost"
         size="sm"
-        onClick={onClear}
-        title="Start new measurement"
+        onClick={handleNewSessionClick}
+        title={t('sessions.startNew')}
       >
         <PlusIcon className="h-4 w-4" />
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('sessions.newSessionConfirmTitle')}
+        message={t('sessions.newSessionConfirmMessage')}
+        confirmLabel={t('sessions.startNew')}
+        variant="destructive"
+        onConfirm={() => {
+          onNewSession();
+        }}
+      />
     </div>
   );
 }

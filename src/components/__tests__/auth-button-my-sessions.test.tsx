@@ -241,6 +241,7 @@ function createTestHarness() {
       sessionCount: 0,
       onSaveComplete: jest.fn(),
       onLoadSession: jest.fn(),
+      onNewSession: jest.fn(),
     };
 
     container = document.createElement('div');
@@ -282,6 +283,7 @@ function createTestHarness() {
       sessionCount: 0,
       onSaveComplete: jest.fn(),
       onLoadSession: jest.fn(),
+      onNewSession: jest.fn(),
     };
     act(() => {
       root!.render(<AuthButton {...defaultProps} {...props} />);

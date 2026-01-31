@@ -67,7 +67,11 @@
     "sessionMissing": "Session file not found",
     "sessionMissingMessage": "This session's data file is missing. Would you like to remove it from the list?",
     "removeFromList": "Remove from List",
-    "nameTooLong": "Name must be {max} characters or less"
+    "nameTooLong": "Name must be {max} characters or less",
+    "newSession": "New Session",
+    "newSessionConfirmTitle": "Start New Session?",
+    "newSessionConfirmMessage": "Your current measurement will be replaced. This cannot be undone.",
+    "startNew": "Start New"
   },
   "errors": {
     "popupBlocked": "Please allow popups for this site to sign in",

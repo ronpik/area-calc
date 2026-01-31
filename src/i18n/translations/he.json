@@ -67,7 +67,11 @@
     "sessionMissing": "קובץ המדידה לא נמצא",
     "sessionMissingMessage": "קובץ הנתונים של מדידה זו חסר. האם להסיר אותה מהרשימה?",
     "removeFromList": "הסר מהרשימה",
-    "nameTooLong": "השם חייב להיות עד {max} תווים"
+    "nameTooLong": "השם חייב להיות עד {max} תווים",
+    "newSession": "מדידה חדשה",
+    "newSessionConfirmTitle": "להתחיל מדידה חדשה?",
+    "newSessionConfirmMessage": "המדידה הנוכחית תוחלף. פעולה זו לא ניתנת לביטול.",
+    "startNew": "התחל חדש"
   },
   "errors": {
     "popupBlocked": "אנא אפשר חלונות קופצים לאתר זה כדי להתחבר",

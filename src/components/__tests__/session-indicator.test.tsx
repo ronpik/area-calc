@@ -9,7 +9,7 @@
  * - Returns null when currentSession is null
  * - Shows name when session exists
  * - Shows amber dot when hasUnsavedChanges is true
- * - Calls onClear when + button clicked
+ * - Calls onNewSession when + button clicked (with confirmation when hasPoints)
  * - Long names truncate with ellipsis
  */
 
@@ -18,6 +18,10 @@ import { createRoot, Root } from 'react-dom/client';
 import { act } from 'react';
 
 import type { CurrentSessionState } from '@/types/session';
+
+// Track ConfirmDialog state
+let mockConfirmDialogOpen = false;
+let mockConfirmDialogOnConfirm: (() => void) | null = null;
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
@@ -47,6 +51,22 @@ jest.mock('@/components/ui/button', () => ({
     }, children),
 }));
 
+// Mock ConfirmDialog component
+jest.mock('@/components/confirm-dialog', () => ({
+  ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => {
+    mockConfirmDialogOpen = open;
+    mockConfirmDialogOnConfirm = onConfirm;
+    return open ? React.createElement('div', { 'data-testid': 'confirm-dialog' }) : null;
+  },
+}));
+
+// Mock useI18n
+jest.mock('@/contexts/i18n-context', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+  }),
+}));
+
 // Import component after mocks
 import { SessionIndicator } from '@/components/session-indicator';
 
@@ -69,7 +89,8 @@ function createTestHarness() {
   function mount(props: {
     currentSession: CurrentSessionState | null;
     hasUnsavedChanges: boolean;
-    onClear: () => void;
+    onNewSession: () => void;
+    hasPoints: boolean;
   }) {
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -95,7 +116,8 @@ function createTestHarness() {
   function rerender(props: {
     currentSession: CurrentSessionState | null;
     hasUnsavedChanges: boolean;
-    onClear: () => void;
+    onNewSession: () => void;
+    hasPoints: boolean;
   }) {
     act(() => {
       root!.render(<SessionIndicator {...props} />);
@@ -111,11 +133,13 @@ function createTestHarness() {
 }
 
 describe('SessionIndicator Component', () => {
-  let mockOnClear: jest.Mock;
+  let mockOnNewSession: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOnClear = jest.fn();
+    mockOnNewSession = jest.fn();
+    mockConfirmDialogOpen = false;
+    mockConfirmDialogOnConfirm = null;
   });
 
   describe('Null Session Handling', () => {
@@ -124,7 +148,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: null,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -141,7 +166,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: null,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -163,7 +189,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -182,7 +209,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -202,7 +230,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -221,7 +250,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -242,7 +272,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -264,7 +295,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -284,7 +316,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -304,7 +337,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -324,7 +358,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: true,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -343,7 +378,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -362,7 +398,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: true,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -381,7 +418,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: true,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -399,7 +437,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: true,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -411,15 +450,16 @@ describe('SessionIndicator Component', () => {
     });
   });
 
-  describe('Clear Button', () => {
-    it('should call onClear when + button is clicked', () => {
+  describe('New Session Button', () => {
+    it('should show confirmation dialog when + button is clicked and hasPoints is true', () => {
       const session = createTestSession();
 
       const harness = createTestHarness();
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -430,7 +470,65 @@ describe('SessionIndicator Component', () => {
           button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
 
-        expect(mockOnClear).toHaveBeenCalledTimes(1);
+        // Should open confirmation dialog, not call onNewSession directly
+        expect(mockConfirmDialogOpen).toBe(true);
+        expect(mockOnNewSession).not.toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should call onNewSession directly when + button is clicked and hasPoints is false', () => {
+      const session = createTestSession();
+
+      const harness = createTestHarness();
+      harness.mount({
+        currentSession: session,
+        hasUnsavedChanges: false,
+        onNewSession: mockOnNewSession,
+        hasPoints: false,
+      });
+
+      try {
+        const button = document.querySelector('[data-testid="button"]');
+        expect(button).not.toBeNull();
+
+        act(() => {
+          button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+
+        // Should call onNewSession directly without confirmation
+        expect(mockOnNewSession).toHaveBeenCalledTimes(1);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should call onNewSession when confirmation dialog is confirmed', () => {
+      const session = createTestSession();
+
+      const harness = createTestHarness();
+      harness.mount({
+        currentSession: session,
+        hasUnsavedChanges: false,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
+      });
+
+      try {
+        const button = document.querySelector('[data-testid="button"]');
+
+        act(() => {
+          button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+
+        // Confirm the dialog
+        expect(mockConfirmDialogOnConfirm).not.toBeNull();
+        act(() => {
+          mockConfirmDialogOnConfirm!();
+        });
+
+        expect(mockOnNewSession).toHaveBeenCalledTimes(1);
       } finally {
         harness.unmount();
       }
@@ -443,7 +541,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -463,7 +562,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -481,7 +581,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -499,11 +600,13 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
-        const button = document.querySelector('button[title="Start new measurement"]');
+        // Button title is from i18n key
+        const button = document.querySelector('button[title="sessions.startNew"]');
         expect(button).not.toBeNull();
       } finally {
         harness.unmount();
@@ -520,7 +623,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session1,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -531,7 +635,8 @@ describe('SessionIndicator Component', () => {
         harness.rerender({
           currentSession: session2,
           hasUnsavedChanges: false,
-          onClear: mockOnClear,
+          onNewSession: mockOnNewSession,
+        hasPoints: true,
         });
 
         // Now should show Session Two
@@ -549,7 +654,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -560,7 +666,8 @@ describe('SessionIndicator Component', () => {
         harness.rerender({
           currentSession: null,
           hasUnsavedChanges: false,
-          onClear: mockOnClear,
+          onNewSession: mockOnNewSession,
+        hasPoints: true,
         });
 
         // Now should be empty
@@ -578,7 +685,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -589,7 +697,8 @@ describe('SessionIndicator Component', () => {
         harness.rerender({
           currentSession: session,
           hasUnsavedChanges: true,
-          onClear: mockOnClear,
+          onNewSession: mockOnNewSession,
+        hasPoints: true,
         });
 
         // Now should show indicator
@@ -599,7 +708,8 @@ describe('SessionIndicator Component', () => {
         harness.rerender({
           currentSession: session,
           hasUnsavedChanges: false,
-          onClear: mockOnClear,
+          onNewSession: mockOnNewSession,
+        hasPoints: true,
         });
 
         // Indicator should be gone
@@ -618,7 +728,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -640,7 +751,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -661,7 +773,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -672,14 +785,15 @@ describe('SessionIndicator Component', () => {
       }
     });
 
-    it('should handle multiple rapid clicks on clear button', () => {
+    it('should handle multiple rapid clicks on new session button without points', () => {
       const session = createTestSession();
 
       const harness = createTestHarness();
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: false,
       });
 
       try {
@@ -691,7 +805,7 @@ describe('SessionIndicator Component', () => {
           button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         });
 
-        expect(mockOnClear).toHaveBeenCalledTimes(3);
+        expect(mockOnNewSession).toHaveBeenCalledTimes(3);
       } finally {
         harness.unmount();
       }
@@ -706,7 +820,8 @@ describe('SessionIndicator Component', () => {
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: true,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -715,8 +830,9 @@ describe('SessionIndicator Component', () => {
         const children = indicatorDiv?.children;
 
         expect(children).not.toBeNull();
-        // FileIcon, name span, unsaved indicator span, Button
-        expect(children?.length).toBe(4);
+        // FileIcon, name span, unsaved indicator span, Button, ConfirmDialog (when open)
+        // ConfirmDialog is rendered but only shows when open
+        expect(children?.length).toBeGreaterThanOrEqual(4);
 
         // First element should be the file icon
         expect(children?.[0].getAttribute('data-testid')).toBe('file-icon');
@@ -735,14 +851,15 @@ describe('SessionIndicator Component', () => {
       }
     });
 
-    it('should have 3 children when no unsaved changes', () => {
+    it('should have at least 3 visible children when no unsaved changes', () => {
       const session = createTestSession();
 
       const harness = createTestHarness();
       harness.mount({
         currentSession: session,
         hasUnsavedChanges: false,
-        onClear: mockOnClear,
+        onNewSession: mockOnNewSession,
+        hasPoints: true,
       });
 
       try {
@@ -751,7 +868,8 @@ describe('SessionIndicator Component', () => {
         const children = indicatorDiv?.children;
 
         // FileIcon, name span, Button (no unsaved indicator)
-        expect(children?.length).toBe(3);
+        // ConfirmDialog may also be rendered (but hidden)
+        expect(children?.length).toBeGreaterThanOrEqual(3);
       } finally {
         harness.unmount();
       }

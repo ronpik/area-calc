@@ -353,6 +353,7 @@ export default function Home() {
         sessionCount={sessionCount}
         onSaveComplete={handleSaveComplete}
         onLoadSession={handleLoadSession}
+        onNewSession={handleClearSession}
       />
 
       <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:max-w-md z-[1000]">
@@ -397,7 +398,8 @@ export default function Home() {
                     <SessionIndicator
                       currentSession={currentSession}
                       hasUnsavedChanges={hasUnsavedChanges}
-                      onClear={handleClearSession}
+                      onNewSession={handleClearSession}
+                      hasPoints={points.length > 0}
                     />
                   </div>
                    <Button size="icon" variant="ghost" onClick={() => setIsPanelExpanded(false)}>

@@ -15,7 +15,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
 import { LoginModal } from '@/components/login-modal';
-import { Loader2, LogIn, LogOut, ChevronDown, User, Save, FolderOpen } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ChevronDown, User, Save, FolderOpen, Plus } from 'lucide-react';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { SaveSessionModal } from '@/components/save-session-modal';
 import { SessionsModal } from '@/components/sessions-modal';
@@ -30,6 +31,7 @@ interface AuthButtonProps {
   sessionCount: number;
   onSaveComplete: (session: CurrentSessionState) => void;
   onLoadSession: (session: SessionData, meta: SessionMeta) => void;
+  onNewSession: () => void;
 }
 
 export function AuthButton({
@@ -40,10 +42,12 @@ export function AuthButton({
   sessionCount,
   onSaveComplete,
   onLoadSession,
+  onNewSession,
 }: AuthButtonProps) {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+  const [newSessionConfirmOpen, setNewSessionConfirmOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
@@ -190,6 +194,18 @@ export function AuthButton({
           <Save className="h-4 w-4 mr-2" />
           {t('sessions.saveCurrent')}
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            if (points.length > 0) {
+              setNewSessionConfirmOpen(true);
+            } else {
+              onNewSession();
+            }
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {t('sessions.newSession')}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="h-4 w-4 mr-2" />
@@ -223,6 +239,18 @@ export function AuthButton({
         currentSession={currentSession}
         sessionCount={sessionCount}
         onSaveComplete={onSaveComplete}
+      />
+
+      <ConfirmDialog
+        open={newSessionConfirmOpen}
+        onOpenChange={setNewSessionConfirmOpen}
+        title={t('sessions.newSessionConfirmTitle')}
+        message={t('sessions.newSessionConfirmMessage')}
+        confirmLabel={t('sessions.startNew')}
+        variant="destructive"
+        onConfirm={() => {
+          onNewSession();
+        }}
       />
     </DropdownMenu>
   );

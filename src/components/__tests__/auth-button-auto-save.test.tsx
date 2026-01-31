@@ -211,6 +211,7 @@ const defaultAuthButtonProps = {
   sessionCount: 0,
   onSaveComplete: jest.fn(),
   onLoadSession: jest.fn(),
+  onNewSession: jest.fn(),
 };
 
 // Helper to render component
