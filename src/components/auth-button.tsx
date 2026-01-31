@@ -15,11 +15,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
 import { LoginModal } from '@/components/login-modal';
-import { Loader2, LogIn, LogOut, ChevronDown, User, Save } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ChevronDown, User, Save, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SaveSessionModal } from '@/components/save-session-modal';
+import { SessionsModal } from '@/components/sessions-modal';
 import type { TrackedPoint } from '@/app/page';
-import type { CurrentSessionState } from '@/types/session';
+import type { CurrentSessionState, SessionData, SessionMeta } from '@/types/session';
 
 interface AuthButtonProps {
   className?: string;
@@ -28,6 +29,7 @@ interface AuthButtonProps {
   currentSession: CurrentSessionState | null;
   sessionCount: number;
   onSaveComplete: (session: CurrentSessionState) => void;
+  onLoadSession: (session: SessionData, meta: SessionMeta) => void;
 }
 
 export function AuthButton({
@@ -37,9 +39,11 @@ export function AuthButton({
   currentSession,
   sessionCount,
   onSaveComplete,
+  onLoadSession,
 }: AuthButtonProps) {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
@@ -156,6 +160,10 @@ export function AuthButton({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setSessionsModalOpen(true)}>
+          <FolderOpen className="h-4 w-4 mr-2" />
+          {t('sessions.mySessions')}
+        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleSaveClick}
           disabled={points.length === 0}
@@ -178,6 +186,13 @@ export function AuthButton({
         currentSession={currentSession}
         sessionCount={sessionCount}
         onSaveComplete={onSaveComplete}
+      />
+
+      <SessionsModal
+        open={sessionsModalOpen}
+        onOpenChange={setSessionsModalOpen}
+        onLoadSession={onLoadSession}
+        hasCurrentPoints={points.length > 0}
       />
     </DropdownMenu>
   );

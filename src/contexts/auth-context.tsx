@@ -6,17 +6,24 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
   type User
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import type { AuthUser } from '@/types/auth';
 
-// Extended interface to include clearError
+// Extended interface to include clearError and email/password methods
 interface UseAuthWithClearError {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
   signIn: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -86,8 +93,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  // Map Firebase error codes to i18n keys
+  const mapFirebaseError = (errorCode: string): string => {
+    const errorMap: Record<string, string> = {
+      'auth/invalid-email': 'invalidEmail',
+      'auth/weak-password': 'weakPassword',
+      'auth/email-already-in-use': 'emailInUse',
+      'auth/user-not-found': 'userNotFound',
+      'auth/wrong-password': 'wrongPassword',
+      'auth/invalid-credential': 'invalidCredentials',
+      'auth/too-many-requests': 'tooManyRequests',
+      'auth/user-disabled': 'userDisabled',
+      'auth/network-request-failed': 'networkError',
+    };
+    return errorMap[errorCode] || 'unknownError';
+  };
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    setError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // State update handled by onAuthStateChanged
+    } catch (err: any) {
+      const mappedError = mapFirebaseError(err.code);
+      setError(mappedError);
+      throw err;
+    }
+  }, []);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string, displayName?: string) => {
+    setError(null);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      if (displayName && userCredential.user) {
+        await updateProfile(userCredential.user, { displayName });
+        // Update local user state with display name
+        setUser(mapFirebaseUser(userCredential.user));
+      }
+      // State update handled by onAuthStateChanged
+    } catch (err: any) {
+      const mappedError = mapFirebaseError(err.code);
+      setError(mappedError);
+      throw err;
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    setError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (err: any) {
+      const mappedError = mapFirebaseError(err.code);
+      setError(mappedError);
+      throw err;
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, signIn, signOut, clearError }}>
+    <AuthContext.Provider value={{ user, loading, error, signIn, signInWithEmail, signUpWithEmail, resetPassword, signOut, clearError }}>
       {children}
     </AuthContext.Provider>
   );

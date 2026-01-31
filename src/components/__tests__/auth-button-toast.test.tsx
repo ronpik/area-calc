@@ -31,6 +31,8 @@ jest.mock('lucide-react', () => ({
     React.createElement('svg', { 'data-testid': 'user-icon', className }),
   Save: ({ className }: { className?: string }) =>
     React.createElement('svg', { 'data-testid': 'save-icon', className }),
+  FolderOpen: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'folder-open-icon', className }),
 }));
 
 // Mock cn utility
@@ -132,6 +134,18 @@ jest.mock('@/components/save-session-modal', () => ({
   },
 }));
 
+// Mock SessionsModal component
+let mockSessionsModalOpen = false;
+let mockSessionsModalOnOpenChange: ((open: boolean) => void) | null = null;
+
+jest.mock('@/components/sessions-modal', () => ({
+  SessionsModal: ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
+    mockSessionsModalOpen = open;
+    mockSessionsModalOnOpenChange = onOpenChange;
+    return open ? React.createElement('div', { 'data-testid': 'sessions-modal' }, 'Sessions Modal') : null;
+  },
+}));
+
 // Mock useAuth hook
 const mockSignIn = jest.fn();
 const mockSignOut = jest.fn();
@@ -189,6 +203,7 @@ const defaultAuthButtonProps = {
   currentSession: null,
   sessionCount: 0,
   onSaveComplete: jest.fn(),
+  onLoadSession: jest.fn(),
 };
 
 // Helper to render component
@@ -243,6 +258,10 @@ describe('AuthButton Sign-In Success Toast (Task 4.2)', () => {
     mockLoginModalOpen = false;
     mockLoginModalOnOpenChange = null;
     mockLoginModalOnSuccess = null;
+    mockSaveModalOpen = false;
+    mockSaveModalOnOpenChange = null;
+    mockSessionsModalOpen = false;
+    mockSessionsModalOnOpenChange = null;
     mockSignIn.mockReset();
     mockSignOut.mockReset();
     mockT.mockClear();

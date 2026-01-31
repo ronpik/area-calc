@@ -17,9 +17,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExportDialog, type KeyValue } from '@/components/export-dialog';
 import { AuthButton } from '@/components/auth-button';
-import type { CurrentSessionState } from '@/types/session';
+import type { CurrentSessionState, SessionData, SessionMeta } from '@/types/session';
 import { generatePointsHash } from '@/lib/points-hash';
 import { SessionIndicator } from '@/components/session-indicator';
+import { useI18n } from '@/contexts/i18n-context';
 
 const AreaMap = dynamic(() => import('@/components/area-map').then((mod) => mod.AreaMap), {
   ssr: false,
@@ -69,6 +70,7 @@ export default function Home() {
   const [sessionCount, setSessionCount] = useState(0);
 
   const { toast } = useToast();
+  const { t } = useI18n();
 
   useEffect(() => {
     setIsMounted(true);
@@ -246,6 +248,37 @@ export default function Home() {
     setSessionCount(prev => prev + 1);
   }, []);
 
+  // Handle loaded session - update points and currentSession
+  const handleLoadSession = useCallback((session: SessionData, meta: SessionMeta) => {
+    // Stop tracking if active
+    if (isTracking) {
+      setIsTracking(false);
+    }
+
+    // Update points
+    setPoints(session.points);
+
+    // Update current session state
+    setCurrentSession({
+      id: session.id,
+      name: session.name,
+      lastSavedAt: session.updatedAt,
+      pointsHashAtSave: generatePointsHash(session.points)
+    });
+
+    // Update localStorage with loaded points
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(session.points));
+
+    // Clear selection state
+    setSelectedPointIndex(null);
+    setDeleteMode(null);
+
+    // Show toast
+    toast({
+      title: t('sessions.sessionLoaded', { name: session.name })
+    });
+  }, [isTracking, toast, t]);
+
   // Handle point selection from list
   const handlePointClick = (index: number) => {
     setSelectedPointIndex(index);
@@ -319,6 +352,7 @@ export default function Home() {
         currentSession={currentSession}
         sessionCount={sessionCount}
         onSaveComplete={handleSaveComplete}
+        onLoadSession={handleLoadSession}
       />
 
       <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:max-w-md z-[1000]">
