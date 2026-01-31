@@ -31,6 +31,24 @@ All state lives in `src/app/page.tsx`:
 - Persisted to `localStorage` under key `recordedPoints`
 - Filter toggles for showing/hiding point types
 
+### Authentication
+
+Firebase Authentication with Google Sign-In. Non-blocking design - app works without auth.
+
+| Component | Location |
+|-----------|----------|
+| Firebase config | `src/lib/firebase.ts` |
+| Auth context | `src/contexts/auth-context.tsx` |
+| i18n context | `src/contexts/i18n-context.tsx` |
+| Auth button | `src/components/auth-button.tsx` (top-right, z-1000) |
+| Login modal | `src/components/login-modal.tsx` |
+
+**Environment**: Firebase credentials in `.env.local` (use `.env.example` as template).
+
+**Hooks**: `useAuth()` for auth state/methods, `useI18n()` for translations.
+
+**Detailed documentation**: See `vbcd-dev/knowledge/auth/auth-implementation.md`
+
 ### Core Components
 
 | File | Responsibility |
