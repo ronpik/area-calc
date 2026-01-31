@@ -32,6 +32,8 @@ jest.mock('lucide-react', () => ({
     React.createElement('svg', { 'data-testid': 'chevron-icon', className }),
   User: ({ className }: { className?: string }) =>
     React.createElement('svg', { 'data-testid': 'user-icon', className }),
+  Save: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'save-icon', className }),
 }));
 
 // Mock cn utility
@@ -93,12 +95,14 @@ jest.mock('@/components/ui/dropdown-menu', () => ({
       'data-testid': 'dropdown-content',
       'data-align': align
     }, children) : null,
-  DropdownMenuItem: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) =>
+  DropdownMenuItem: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) =>
     React.createElement('div', {
       'data-testid': 'dropdown-item',
-      onClick,
-      role: 'menuitem'
+      onClick: disabled ? undefined : onClick,
+      role: 'menuitem',
+      'aria-disabled': disabled,
     }, children),
+  DropdownMenuSeparator: () => React.createElement('div', { 'data-testid': 'dropdown-separator' }),
 }));
 
 // Mock LoginModal component
@@ -110,6 +114,18 @@ jest.mock('@/components/login-modal', () => ({
     mockLoginModalOpen = open;
     mockLoginModalOnOpenChange = onOpenChange;
     return open ? React.createElement('div', { 'data-testid': 'login-modal' }, 'Login Modal') : null;
+  },
+}));
+
+// Mock SaveSessionModal component
+let mockSaveModalOpen = false;
+let mockSaveModalOnOpenChange: ((open: boolean) => void) | null = null;
+
+jest.mock('@/components/save-session-modal', () => ({
+  SaveSessionModal: ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => {
+    mockSaveModalOpen = open;
+    mockSaveModalOnOpenChange = onOpenChange;
+    return open ? React.createElement('div', { 'data-testid': 'save-session-modal' }, 'Save Session Modal') : null;
   },
 }));
 
@@ -162,6 +178,15 @@ jest.mock('@/hooks/use-toast', () => ({
 // Import component after mocks
 import { AuthButton } from '@/components/auth-button';
 
+// Default props for AuthButton tests
+const defaultAuthButtonProps = {
+  points: [],
+  area: 0,
+  currentSession: null,
+  sessionCount: 0,
+  onSaveComplete: jest.fn(),
+};
+
 // Helper to render component
 function createTestHarness() {
   let container: HTMLDivElement | null = null;
@@ -172,7 +197,7 @@ function createTestHarness() {
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => {
-      root!.render(<AuthButton {...props} />);
+      root!.render(<AuthButton {...defaultAuthButtonProps} {...props} />);
     });
   }
 
@@ -191,7 +216,7 @@ function createTestHarness() {
 
   function rerender(props: { className?: string } = {}) {
     act(() => {
-      root!.render(<AuthButton {...props} />);
+      root!.render(<AuthButton {...defaultAuthButtonProps} {...props} />);
     });
   }
 

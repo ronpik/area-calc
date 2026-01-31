@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,15 +15,31 @@ import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import { useToast } from '@/hooks/use-toast';
 import { LoginModal } from '@/components/login-modal';
-import { Loader2, LogIn, LogOut, ChevronDown, User } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ChevronDown, User, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SaveSessionModal } from '@/components/save-session-modal';
+import type { TrackedPoint } from '@/app/page';
+import type { CurrentSessionState } from '@/types/session';
 
 interface AuthButtonProps {
   className?: string;
+  points: TrackedPoint[];
+  area: number;
+  currentSession: CurrentSessionState | null;
+  sessionCount: number;
+  onSaveComplete: (session: CurrentSessionState) => void;
 }
 
-export function AuthButton({ className }: AuthButtonProps) {
+export function AuthButton({
+  className,
+  points,
+  area,
+  currentSession,
+  sessionCount,
+  onSaveComplete,
+}: AuthButtonProps) {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
@@ -57,6 +74,17 @@ export function AuthButton({ className }: AuthButtonProps) {
         title: t('errors.unknownError'),
       });
     }
+  };
+
+  const handleSaveClick = () => {
+    if (points.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: t('sessions.noPointsToSave'),
+      });
+      return;
+    }
+    setSaveModalOpen(true);
   };
 
   // Loading state
@@ -128,11 +156,29 @@ export function AuthButton({ className }: AuthButtonProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onClick={handleSaveClick}
+          disabled={points.length === 0}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {t('sessions.saveCurrent')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="h-4 w-4 mr-2" />
           {t('auth.signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
+
+      <SaveSessionModal
+        open={saveModalOpen}
+        onOpenChange={setSaveModalOpen}
+        points={points}
+        area={area}
+        currentSession={currentSession}
+        sessionCount={sessionCount}
+        onSaveComplete={onSaveComplete}
+      />
     </DropdownMenu>
   );
 }

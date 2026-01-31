@@ -66,6 +66,7 @@ export default function Home() {
 
   // Session state
   const [currentSession, setCurrentSession] = useState<CurrentSessionState | null>(null);
+  const [sessionCount, setSessionCount] = useState(0);
 
   const { toast } = useToast();
 
@@ -239,6 +240,12 @@ export default function Home() {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
   }, [isTracking]);
 
+  // Handle save complete - update currentSession and increment sessionCount
+  const handleSaveComplete = useCallback((session: CurrentSessionState) => {
+    setCurrentSession(session);
+    setSessionCount(prev => prev + 1);
+  }, []);
+
   // Handle point selection from list
   const handlePointClick = (index: number) => {
     setSelectedPointIndex(index);
@@ -305,7 +312,14 @@ export default function Home() {
       
       <ExportDialog open={isExporting} onOpenChange={setIsExporting} area={calculatedArea} points={filteredPoints} />
 
-      <AuthButton className="absolute top-4 right-4 z-[1000]" />
+      <AuthButton
+        className="absolute top-4 right-4 z-[1000]"
+        points={points}
+        area={calculatedArea}
+        currentSession={currentSession}
+        sessionCount={sessionCount}
+        onSaveComplete={handleSaveComplete}
+      />
 
       <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:max-w-md z-[1000]">
         {!isPanelExpanded ? (
