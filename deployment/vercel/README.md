@@ -44,7 +44,27 @@ Automated deployment scripts for deploying AreaCalc to Vercel.
 
    *For local development, ORG_ID and PROJECT_ID are optional if you have an existing `.vercel/project.json` (created by `create-project.sh` or `vercel link`). For CI/CD, all three are recommended.
 
-5. **Configure Firebase Environment Variables** (choose one):
+5. **Configure Firebase Storage CORS** (one-time):
+
+   Firebase Storage requires CORS configuration to allow requests from your deployment URL.
+
+   ```bash
+   # Install Google Cloud SDK if not installed
+   # https://cloud.google.com/sdk/docs/install
+
+   # Authenticate with Google Cloud
+   gcloud auth login
+
+   # Apply CORS configuration to your bucket
+   gsutil cors set deployment/vercel/cors.json gs://areacalc-sl928.firebasestorage.app
+
+   # Verify CORS configuration
+   gsutil cors get gs://areacalc-sl928.firebasestorage.app
+   ```
+
+   The `cors.json` file allows requests from localhost:9002 and all Vercel deployments.
+
+6. **Configure Firebase Environment Variables** (choose one):
 
    **Option A: Vercel Dashboard** (recommended for production)
 
@@ -207,6 +227,7 @@ Either:
 
 ```
 deployment/vercel/
+├── cors.json          # Firebase Storage CORS configuration
 ├── create-project.sh  # One-time project creation
 ├── deploy.sh          # Main deployment script
 ├── setup.sh           # Setup verification
