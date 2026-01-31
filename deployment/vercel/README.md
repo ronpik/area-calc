@@ -44,10 +44,11 @@ Automated deployment scripts for deploying AreaCalc to Vercel.
 
    *For local development, ORG_ID and PROJECT_ID are optional if you have an existing `.vercel/project.json` (created by `create-project.sh` or `vercel link`). For CI/CD, all three are recommended.
 
-5. **Configure Firebase Environment Variables**:
-   Go to Vercel Dashboard > Your Project > Settings > Environment Variables
+5. **Configure Firebase Environment Variables** (choose one):
 
-   Add these variables for all environments (Production, Preview, Development):
+   **Option A: Vercel Dashboard** (recommended for production)
+
+   Go to Vercel Dashboard > Your Project > Settings > Environment Variables and add:
    - `NEXT_PUBLIC_FIREBASE_API_KEY`
    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
    - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
@@ -55,23 +56,36 @@ Automated deployment scripts for deploying AreaCalc to Vercel.
    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
    - `NEXT_PUBLIC_FIREBASE_APP_ID`
 
+   **Option B: Pass via --env flag** (convenient for local dev)
+
+   Use `--env` to load from `.env.local` and pass to Vercel:
+   ```bash
+   ./deployment/vercel/deploy.sh --env
+   ```
+
 ### Deploying
 
 **Local Development** (if you have an existing project link):
 ```bash
 export VERCEL_TOKEN=your_token
 
-# Preview deployment
+# Preview deployment (uses env vars from Vercel Dashboard)
 ./deployment/vercel/deploy.sh
+
+# Preview deployment with env vars from .env.local
+./deployment/vercel/deploy.sh --env
 
 # Production deployment
 ./deployment/vercel/deploy.sh --prod
 
+# Production with env vars from custom file
+./deployment/vercel/deploy.sh --prod --env=path/to/env/file
+
 # Force rebuild without cache
 ./deployment/vercel/deploy.sh --no-cache
 
-# Production + no cache
-./deployment/vercel/deploy.sh --prod --no-cache
+# Full combo: production + no cache + env vars
+./deployment/vercel/deploy.sh --prod --no-cache --env
 ```
 
 **CI/CD** (fully automated, no existing project link needed):
@@ -176,7 +190,12 @@ Run `./deployment/vercel/create-project.sh` to create/link the project.
 Your VERCEL_TOKEN may have expired. Create a new one at https://vercel.com/account/tokens
 
 ### Firebase auth not working in deployment
-Make sure you've configured all Firebase environment variables in the Vercel dashboard under Project Settings > Environment Variables.
+Either:
+1. Configure Firebase environment variables in the Vercel dashboard under Project Settings > Environment Variables
+2. Or use `--env` flag to pass them from your local `.env.local` file:
+   ```bash
+   ./deployment/vercel/deploy.sh --env
+   ```
 
 ### Build fails
 1. Run `npm run build` locally to check for errors

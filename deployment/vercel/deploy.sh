@@ -2,7 +2,7 @@
 #
 # Deploy AreaCalc to Vercel
 #
-# Usage: ./deploy.sh [--prod] [--no-cache]
+# Usage: ./deploy.sh [--prod] [--no-cache] [--env]
 #
 # Prerequisites:
 #   - Vercel CLI installed (npm i -g vercel) - will auto-install if missing
@@ -16,8 +16,10 @@
 # Examples:
 #   ./deploy.sh                       # Deploy preview
 #   ./deploy.sh --prod                # Deploy to production
+#   ./deploy.sh --env                 # Deploy with env vars from .env.local
+#   ./deploy.sh --env=path/to/file    # Deploy with env vars from custom file
 #   ./deploy.sh --no-cache            # Force rebuild without cache
-#   ./deploy.sh --prod --no-cache     # Production deploy, no cache
+#   ./deploy.sh --prod --env          # Production deploy with env vars
 #
 
 set -e
@@ -42,6 +44,20 @@ PROD_FLAG=""
 FORCE_FLAG=""
 DEPLOY_TYPE="preview"
 
+# Environment file settings
+ENV_FILE=""
+USE_ENV_FILE=false
+
+# Required Firebase environment variables (when using --env)
+REQUIRED_ENV_VARS=(
+    "NEXT_PUBLIC_FIREBASE_API_KEY"
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"
+    "NEXT_PUBLIC_FIREBASE_APP_ID"
+)
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -54,13 +70,25 @@ while [[ $# -gt 0 ]]; do
             FORCE_FLAG="--force"
             shift
             ;;
+        --env)
+            USE_ENV_FILE=true
+            ENV_FILE="$PROJECT_ROOT/.env.local"
+            shift
+            ;;
+        --env=*)
+            USE_ENV_FILE=true
+            ENV_FILE="${1#*=}"
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--prod] [--no-cache]"
+            echo "Usage: $0 [--prod] [--no-cache] [--env]"
             echo ""
             echo "Options:"
-            echo "  --prod      Deploy to production (default: preview)"
-            echo "  --no-cache  Force rebuild without using cache"
-            echo "  --help      Show this help message"
+            echo "  --prod       Deploy to production (default: preview)"
+            echo "  --no-cache   Force rebuild without using cache"
+            echo "  --env        Load env vars from .env.local and pass to Vercel"
+            echo "  --env=FILE   Load env vars from custom file path"
+            echo "  --help       Show this help message"
             echo ""
             echo "Required environment variables:"
             echo "  VERCEL_TOKEN       API token from Vercel dashboard"
@@ -160,6 +188,50 @@ fi
 echo ""
 
 # ============================================
+# Step 2.5: Load Environment Variables (if --env)
+# ============================================
+ENV_FLAGS=""
+
+if [ "$USE_ENV_FILE" = true ]; then
+    echo -e "${CYAN}Step 2.5: Loading environment variables...${NC}"
+    echo ""
+
+    if [ ! -f "$ENV_FILE" ]; then
+        echo -e "${RED}✗ Environment file not found: ${ENV_FILE}${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC} Loading from ${CYAN}${ENV_FILE}${NC}"
+
+    # Source the env file
+    set -a
+    source "$ENV_FILE"
+    set +a
+
+    # Validate required variables
+    MISSING_VARS=()
+    for VAR in "${REQUIRED_ENV_VARS[@]}"; do
+        if [ -z "${!VAR}" ]; then
+            MISSING_VARS+=("$VAR")
+        fi
+    done
+
+    if [ ${#MISSING_VARS[@]} -ne 0 ]; then
+        echo -e "${RED}✗ Missing required environment variables:${NC}"
+        for VAR in "${MISSING_VARS[@]}"; do
+            echo -e "    - $VAR"
+        done
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC} All required Firebase variables present"
+
+    # Build env flags for vercel deploy
+    for VAR in "${REQUIRED_ENV_VARS[@]}"; do
+        ENV_FLAGS="$ENV_FLAGS --build-env ${VAR}=${!VAR} --env ${VAR}=${!VAR}"
+    done
+    echo ""
+fi
+
+# ============================================
 # Configuration Summary
 # ============================================
 echo -e "${YELLOW}Project:${NC}      ${PROJECT_NAME}"
@@ -168,6 +240,9 @@ echo -e "${YELLOW}Project root:${NC} ${PROJECT_ROOT}"
 echo -e "${YELLOW}Link method:${NC}  ${LINK_METHOD}"
 if [ -n "$FORCE_FLAG" ]; then
     echo -e "${YELLOW}Cache:${NC}        disabled (--force)"
+fi
+if [ "$USE_ENV_FILE" = true ]; then
+    echo -e "${YELLOW}Env file:${NC}     ${ENV_FILE}"
 fi
 echo ""
 
@@ -185,12 +260,13 @@ DISPLAY_CMD="vercel deploy"
 [ -n "$PROD_FLAG" ] && DISPLAY_CMD="$DISPLAY_CMD --prod"
 [ -n "$FORCE_FLAG" ] && DISPLAY_CMD="$DISPLAY_CMD --force"
 DISPLAY_CMD="$DISPLAY_CMD --yes"
+[ -n "$ENV_FLAGS" ] && DISPLAY_CMD="$DISPLAY_CMD [env-vars]"
 
 echo -e "${CYAN}Running: ${DISPLAY_CMD} [--token=***]${NC}"
 echo ""
 
 # Execute deployment
-DEPLOY_OUTPUT=$(vercel deploy $PROD_FLAG $FORCE_FLAG --yes --token="$VERCEL_TOKEN" 2>&1)
+DEPLOY_OUTPUT=$(vercel deploy $PROD_FLAG $FORCE_FLAG $ENV_FLAGS --yes --token="$VERCEL_TOKEN" 2>&1)
 DEPLOY_EXIT_CODE=$?
 
 if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
