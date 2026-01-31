@@ -48,11 +48,15 @@ export function AuthButton({
   const { t } = useI18n();
   const { toast } = useToast();
 
+  // State for auto-save prompt after sign-in
+  const [autoSaveModalOpen, setAutoSaveModalOpen] = useState(false);
+
   // Track if sign-in was triggered via modal (not page refresh)
   const justSignedInRef = useRef(false);
   const prevUserRef = useRef(user);
 
   // Show toast when user signs in (not on page refresh)
+  // Also prompt to save localStorage points if they exist
   useEffect(() => {
     if (!prevUserRef.current && user && justSignedInRef.current) {
       // User just signed in via modal
@@ -61,6 +65,21 @@ export function AuthButton({
           name: user.displayName || user.email || 'User'
         }),
       });
+
+      // Check localStorage for points and prompt to save
+      try {
+        const storedPoints = localStorage.getItem('recordedPoints');
+        if (storedPoints) {
+          const parsedPoints = JSON.parse(storedPoints);
+          if (Array.isArray(parsedPoints) && parsedPoints.length > 0) {
+            // Open save modal for auto-save prompt
+            setAutoSaveModalOpen(true);
+          }
+        }
+      } catch {
+        // Ignore localStorage parsing errors
+      }
+
       justSignedInRef.current = false;
     }
     prevUserRef.current = user;
@@ -193,6 +212,17 @@ export function AuthButton({
         onOpenChange={setSessionsModalOpen}
         onLoadSession={onLoadSession}
         hasCurrentPoints={points.length > 0}
+      />
+
+      {/* Auto-save modal shown after sign-in when localStorage has points */}
+      <SaveSessionModal
+        open={autoSaveModalOpen}
+        onOpenChange={setAutoSaveModalOpen}
+        points={points}
+        area={area}
+        currentSession={currentSession}
+        sessionCount={sessionCount}
+        onSaveComplete={onSaveComplete}
       />
     </DropdownMenu>
   );
