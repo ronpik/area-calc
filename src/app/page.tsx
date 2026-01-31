@@ -17,6 +17,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExportDialog, type KeyValue } from '@/components/export-dialog';
 import { AuthButton } from '@/components/auth-button';
+import type { CurrentSessionState } from '@/types/session';
+import { generatePointsHash } from '@/lib/points-hash';
+import { SessionIndicator } from '@/components/session-indicator';
 
 const AreaMap = dynamic(() => import('@/components/area-map').then((mod) => mod.AreaMap), {
   ssr: false,
@@ -32,6 +35,9 @@ export interface TrackedPoint {
 }
 
 const LOCAL_STORAGE_KEY = 'recordedPoints';
+
+// Export setCurrentSession type for use by other modules
+export type SetCurrentSessionFn = React.Dispatch<React.SetStateAction<CurrentSessionState | null>>;
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
@@ -58,6 +64,8 @@ export default function Home() {
 
   const [isExporting, setIsExporting] = useState(false);
 
+  // Session state
+  const [currentSession, setCurrentSession] = useState<CurrentSessionState | null>(null);
 
   const { toast } = useToast();
 
@@ -213,6 +221,23 @@ export default function Home() {
     return calculatePolygonArea(geoPoints);
   }, [filteredPoints]);
 
+  // Compute unsaved changes - true if current points differ from saved state
+  const hasUnsavedChanges = useMemo(() => {
+    if (!currentSession) return false;
+    return generatePointsHash(points) !== currentSession.pointsHashAtSave;
+  }, [currentSession, points]);
+
+  // Clear session and start new measurement
+  const handleClearSession = useCallback(() => {
+    if (isTracking) {
+      setIsTracking(false);
+    }
+    setPoints([]);
+    setCurrentSession(null);
+    setSelectedPointIndex(null);
+    setDeleteMode(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  }, [isTracking]);
 
   // Handle point selection from list
   const handlePointClick = (index: number) => {
@@ -321,6 +346,11 @@ export default function Home() {
                         {currentPosition ? `${currentPosition.accuracy.toFixed(1)}m (${accuracyStatus})` : 'Acquiring...'}
                       </span>
                     </CardDescription>
+                    <SessionIndicator
+                      currentSession={currentSession}
+                      hasUnsavedChanges={hasUnsavedChanges}
+                      onClear={handleClearSession}
+                    />
                   </div>
                    <Button size="icon" variant="ghost" onClick={() => setIsPanelExpanded(false)}>
                       <ChevronsDown />
