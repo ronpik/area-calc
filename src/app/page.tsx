@@ -343,7 +343,13 @@ export default function Home() {
         />
       ) : <div className="h-full w-full bg-muted animate-pulse" />}
       
-      <ExportDialog open={isExporting} onOpenChange={setIsExporting} area={calculatedArea} points={filteredPoints} />
+      <ExportDialog
+        open={isExporting}
+        onOpenChange={setIsExporting}
+        area={calculatedArea}
+        points={filteredPoints}
+        currentSessionName={currentSession?.name}
+      />
 
       <AuthButton
         className="absolute top-4 right-4 z-[1000]"

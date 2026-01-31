@@ -62,9 +62,10 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
   area: number;
   points: TrackedPoint[];
+  currentSessionName?: string;
 }
 
-export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogProps) {
+export function ExportDialog({ open, onOpenChange, area, points, currentSessionName }: ExportDialogProps) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [keyValues, setKeyValues] = useState<KeyValue[]>([
@@ -88,6 +89,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       });
     }
   }, [toast]);
+
+  // Auto-populate title from session name when dialog opens
+  useEffect(() => {
+    if (open && currentSessionName) {
+      setTitle(currentSessionName);
+    }
+  }, [open, currentSessionName]);
 
   const addKeyValue = () => {
     setKeyValues([...keyValues, { id: Date.now(), key: '', value: '' }]);
@@ -479,14 +487,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         });
       }
 
-      // Open PDF in new tab
-      const pdfBlob = doc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      // Download PDF
+      const filename = (title.trim() || 'area-report') + '.pdf';
+      doc.save(filename);
 
       toast({
-        title: 'PDF נפתח בכרטיסייה חדשה',
-        description: 'הדוח שלך נפתח בכרטיסייה חדשה.',
+        title: 'PDF הורד בהצלחה',
+        description: `הקובץ "${filename}" הורד למכשיר שלך.`,
       });
 
     } catch (error) {
