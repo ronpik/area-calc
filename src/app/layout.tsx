@@ -6,6 +6,17 @@ import { Providers } from '@/components/providers';
 export const metadata: Metadata = {
   title: 'AreaCalc',
   description: 'Calculate the size of an area using your location.',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AreaCalc',
+  },
 };
 
 export default function RootLayout({
