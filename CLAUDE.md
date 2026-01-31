@@ -49,6 +49,29 @@ Firebase Authentication with Google Sign-In. Non-blocking design - app works wit
 
 **Detailed documentation**: See `vbcd-dev/knowledge/auth/auth-implementation.md`
 
+### Session Persistence
+
+Cloud-based session storage for authenticated users via Firebase Storage.
+
+| Component | Location |
+|-----------|----------|
+| Storage hook | `src/hooks/use-storage.ts` (CRUD operations) |
+| Session types | `src/types/session.ts` |
+| Save modal | `src/components/save-session-modal.tsx` |
+| Sessions list | `src/components/sessions-modal.tsx` |
+| Session indicator | `src/components/session-indicator.tsx` |
+
+**Features**:
+- Save/update measurements with custom names
+- Load sessions from any device
+- Session management (rename, delete)
+- Current session tracking with unsaved changes indicator
+- Auto-save prompt on login if localStorage has data
+
+**State in page.tsx**: `currentSession`, `hasUnsavedChanges`, `handleLoadSession`, `handleSaveComplete`
+
+**Detailed documentation**: See `vbcd-dev/knowledge/persistence/session-persistence.md`
+
 ### Core Components
 
 | File | Responsibility |
