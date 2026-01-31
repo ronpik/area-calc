@@ -202,6 +202,91 @@ describe('Translation Files', () => {
     });
   });
 
+  describe('English sessions translations (en.json)', () => {
+    it('should have sessions section defined', () => {
+      expect(en.sessions).toBeDefined();
+    });
+
+    it('should have all basic sessions keys', () => {
+      expect(en.sessions.mySessions).toBe('My Sessions');
+      expect(en.sessions.saveCurrent).toBe('Save Current');
+      expect(en.sessions.noSessions).toBe('No saved sessions yet');
+      expect(en.sessions.noSessionsHint).toBe('Start measuring an area and save it to access it later from any device.');
+      expect(en.sessions.loadingSessions).toBe('Loading sessions...');
+      expect(en.sessions.loadFailed).toBe('Failed to load sessions');
+      expect(en.sessions.save).toBe('Save');
+      expect(en.sessions.cancel).toBe('Cancel');
+    });
+
+    it('should have all save modal keys', () => {
+      expect(en.sessions.saveSession).toBe('Save Session');
+      expect(en.sessions.saveNewSession).toBe('Save New Session');
+      expect(en.sessions.sessionName).toBe('Session Name');
+      expect(en.sessions.sessionSaved).toBe('Session saved');
+      expect(en.sessions.noPointsToSave).toBe('No points to save');
+    });
+
+    it('should have all session actions keys', () => {
+      expect(en.sessions.rename).toBe('Rename');
+      expect(en.sessions.delete).toBe('Delete');
+      expect(en.sessions.load).toBe('Load');
+      expect(en.sessions.sessionLoaded).toBe('Loaded {name}');
+      expect(en.sessions.sessionDeleted).toBe('Session deleted');
+      expect(en.sessions.sessionRenamed).toBe('Session renamed');
+    });
+
+    it('should have all confirmation dialog keys', () => {
+      expect(en.sessions.deleteConfirmTitle).toBe('Delete "{name}"?');
+      expect(en.sessions.deleteConfirmMessage).toBe('This session will be permanently deleted. This cannot be undone.');
+      expect(en.sessions.loadConfirmTitle).toBe('Load "{name}"?');
+      expect(en.sessions.loadConfirmMessage).toBe('Your current points will be replaced. This cannot be undone.');
+    });
+
+    it('should have all session metadata keys with placeholders', () => {
+      expect(en.sessions.points).toBe('{count} points');
+      expect(en.sessions.area).toContain('{value}');
+      expect(en.sessions.area).toContain('m\u00b2'); // m² symbol
+      expect(en.sessions.currentSession).toBe('Current: {name}');
+    });
+
+    it('should have all session state keys', () => {
+      expect(en.sessions.unsavedChanges).toBe('Unsaved changes');
+      expect(en.sessions.startNew).toBe('Start new measurement');
+    });
+
+    it('should have all update existing session keys', () => {
+      expect(en.sessions.updateExisting).toBe('Update "{name}"');
+      expect(en.sessions.updateExistingHint).toBe('Save changes to existing session');
+      expect(en.sessions.saveAsNew).toBe('Save as New Session');
+      expect(en.sessions.saveAsNewHint).toBe('Keep original, create a copy');
+    });
+
+    it('should have working on and updated keys', () => {
+      expect(en.sessions.workingOn).toBe('You\'re working on "{name}"');
+      expect(en.sessions.sessionUpdated).toBe('Session updated');
+      expect(en.sessions.defaultName).toBe('Area {n}');
+    });
+
+    it('should have correct placeholder parameters in all parameterized keys', () => {
+      expect(en.sessions.sessionLoaded).toContain('{name}');
+      expect(en.sessions.deleteConfirmTitle).toContain('{name}');
+      expect(en.sessions.loadConfirmTitle).toContain('{name}');
+      expect(en.sessions.points).toContain('{count}');
+      expect(en.sessions.area).toContain('{value}');
+      expect(en.sessions.currentSession).toContain('{name}');
+      expect(en.sessions.updateExisting).toContain('{name}');
+      expect(en.sessions.workingOn).toContain('{name}');
+      expect(en.sessions.defaultName).toContain('{n}');
+    });
+
+    it('should have session error keys in errors section', () => {
+      expect(en.errors.saveFailed).toBe('Failed to save session');
+      expect(en.errors.loadFailed).toBe('Failed to load session');
+      expect(en.errors.deleteFailed).toBe('Failed to delete session');
+      expect(en.errors.renameFailed).toBe('Failed to rename session');
+    });
+  });
+
   describe('Hebrew translations (he.json)', () => {
     it('should have auth section with all required keys', () => {
       expect(he.auth).toBeDefined();
@@ -237,6 +322,83 @@ describe('Translation Files', () => {
       expect(Object.keys(he.auth).sort()).toEqual(Object.keys(en.auth).sort());
       expect(Object.keys(he.errors).sort()).toEqual(Object.keys(en.errors).sort());
       expect(Object.keys(he.common).sort()).toEqual(Object.keys(en.common).sort());
+    });
+  });
+
+  describe('Hebrew sessions translations (he.json)', () => {
+    it('should have sessions section defined', () => {
+      expect(he.sessions).toBeDefined();
+    });
+
+    it('should have all basic sessions keys', () => {
+      expect(he.sessions.mySessions).toBe('המדידות שלי');
+      expect(he.sessions.saveCurrent).toBe('שמור נוכחי');
+      expect(he.sessions.noSessions).toBe('אין מדידות שמורות');
+      expect(he.sessions.noSessionsHint).toBeDefined();
+      expect(he.sessions.loadingSessions).toBe('טוען מדידות...');
+      expect(he.sessions.loadFailed).toBeDefined();
+      expect(he.sessions.save).toBe('שמור');
+      expect(he.sessions.cancel).toBe('ביטול');
+    });
+
+    it('should have all save modal keys', () => {
+      expect(he.sessions.saveSession).toBe('שמור מדידה');
+      expect(he.sessions.saveNewSession).toBe('שמור מדידה חדשה');
+      expect(he.sessions.sessionName).toBe('שם המדידה');
+      expect(he.sessions.sessionSaved).toBe('המדידה נשמרה');
+      expect(he.sessions.noPointsToSave).toBe('אין נקודות לשמירה');
+    });
+
+    it('should have all session actions keys', () => {
+      expect(he.sessions.rename).toBe('שנה שם');
+      expect(he.sessions.delete).toBe('מחק');
+      expect(he.sessions.load).toBe('טען');
+      expect(he.sessions.sessionLoaded).toContain('{name}');
+      expect(he.sessions.sessionDeleted).toBe('המדידה נמחקה');
+      expect(he.sessions.sessionRenamed).toBe('שם המדידה שונה');
+    });
+
+    it('should have all confirmation dialog keys with placeholders', () => {
+      expect(he.sessions.deleteConfirmTitle).toContain('{name}');
+      expect(he.sessions.deleteConfirmMessage).toBeDefined();
+      expect(he.sessions.loadConfirmTitle).toContain('{name}');
+      expect(he.sessions.loadConfirmMessage).toBeDefined();
+    });
+
+    it('should have all session metadata keys with placeholders', () => {
+      expect(he.sessions.points).toContain('{count}');
+      expect(he.sessions.area).toContain('{value}');
+      expect(he.sessions.currentSession).toContain('{name}');
+    });
+
+    it('should have all session state keys', () => {
+      expect(he.sessions.unsavedChanges).toBe('שינויים לא שמורים');
+      expect(he.sessions.startNew).toBe('התחל מדידה חדשה');
+    });
+
+    it('should have all update existing session keys', () => {
+      expect(he.sessions.updateExisting).toContain('{name}');
+      expect(he.sessions.updateExistingHint).toBeDefined();
+      expect(he.sessions.saveAsNew).toBe('שמור כמדידה חדשה');
+      expect(he.sessions.saveAsNewHint).toBeDefined();
+    });
+
+    it('should have working on and updated keys', () => {
+      expect(he.sessions.workingOn).toContain('{name}');
+      expect(he.sessions.sessionUpdated).toBe('המדידה עודכנה');
+      expect(he.sessions.defaultName).toContain('{n}');
+    });
+
+    it('should have session error keys in errors section', () => {
+      expect(he.errors.saveFailed).toBe('שמירת המדידה נכשלה');
+      expect(he.errors.loadFailed).toBe('טעינת המדידה נכשלה');
+      expect(he.errors.deleteFailed).toBe('מחיקת המדידה נכשלה');
+      expect(he.errors.renameFailed).toBe('שינוי שם המדידה נכשל');
+    });
+
+    it('should have matching sessions structure with English translations', () => {
+      // Verify both files have the same session keys
+      expect(Object.keys(he.sessions).sort()).toEqual(Object.keys(en.sessions).sort());
     });
   });
 });
@@ -364,6 +526,92 @@ describe('Translation Function (t)', () => {
       const t = createTranslator('en');
       const result = t('auth.signedInAs', { name: 'יוסי' });
       expect(result).toBe('Signed in as יוסי');
+    });
+  });
+
+  describe('Session key parameter substitution', () => {
+    it('should substitute {name} in sessions.sessionLoaded (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.sessionLoaded', { name: 'Test Session' });
+      expect(result).toBe('Loaded Test Session');
+    });
+
+    it('should substitute {name} in sessions.sessionLoaded (Hebrew)', () => {
+      const t = createTranslator('he');
+      const result = t('sessions.sessionLoaded', { name: 'Test Session' });
+      expect(result).toBe('נטען: Test Session');
+    });
+
+    it('should substitute {name} in sessions.deleteConfirmTitle (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.deleteConfirmTitle', { name: 'My Area' });
+      expect(result).toBe('Delete "My Area"?');
+    });
+
+    it('should substitute {name} in sessions.loadConfirmTitle (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.loadConfirmTitle', { name: 'My Area' });
+      expect(result).toBe('Load "My Area"?');
+    });
+
+    it('should substitute {count} in sessions.points (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.points', { count: 5 });
+      expect(result).toBe('5 points');
+    });
+
+    it('should substitute {count} in sessions.points (Hebrew)', () => {
+      const t = createTranslator('he');
+      const result = t('sessions.points', { count: 10 });
+      expect(result).toBe('10 נקודות');
+    });
+
+    it('should substitute {value} in sessions.area (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.area', { value: '123.45' });
+      expect(result).toBe('123.45 m\u00b2');
+    });
+
+    it('should substitute {value} in sessions.area (Hebrew)', () => {
+      const t = createTranslator('he');
+      const result = t('sessions.area', { value: '123.45' });
+      expect(result).toContain('123.45');
+    });
+
+    it('should substitute {name} in sessions.currentSession (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.currentSession', { name: 'Farm Plot' });
+      expect(result).toBe('Current: Farm Plot');
+    });
+
+    it('should substitute {name} in sessions.currentSession (Hebrew)', () => {
+      const t = createTranslator('he');
+      const result = t('sessions.currentSession', { name: 'Farm Plot' });
+      expect(result).toBe('נוכחי: Farm Plot');
+    });
+
+    it('should substitute {name} in sessions.updateExisting (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.updateExisting', { name: 'Garden' });
+      expect(result).toBe('Update "Garden"');
+    });
+
+    it('should substitute {name} in sessions.workingOn (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.workingOn', { name: 'Backyard' });
+      expect(result).toBe('You\'re working on "Backyard"');
+    });
+
+    it('should substitute {n} in sessions.defaultName (English)', () => {
+      const t = createTranslator('en');
+      const result = t('sessions.defaultName', { n: 1 });
+      expect(result).toBe('Area 1');
+    });
+
+    it('should substitute {n} in sessions.defaultName (Hebrew)', () => {
+      const t = createTranslator('he');
+      const result = t('sessions.defaultName', { n: 1 });
+      expect(result).toBe('שטח 1');
     });
   });
 
