@@ -132,6 +132,9 @@ describe('Auth TypeScript Types', () => {
         loading: true,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       };
 
@@ -139,6 +142,9 @@ describe('Auth TypeScript Types', () => {
       expect(useAuth.loading).toBe(true);
       expect(useAuth.error).toBeNull();
       expect(typeof useAuth.signIn).toBe('function');
+      expect(typeof useAuth.signInWithEmail).toBe('function');
+      expect(typeof useAuth.signUpWithEmail).toBe('function');
+      expect(typeof useAuth.resetPassword).toBe('function');
       expect(typeof useAuth.signOut).toBe('function');
     });
 
@@ -152,6 +158,9 @@ describe('Auth TypeScript Types', () => {
         signIn: async () => {
           signInCalled = true;
         },
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       };
 
@@ -175,6 +184,9 @@ describe('Auth TypeScript Types', () => {
         loading: false,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {
           signOutCalled = true;
         },
@@ -198,6 +210,9 @@ describe('Auth TypeScript Types', () => {
         loading: false,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       };
 
@@ -206,12 +221,15 @@ describe('Auth TypeScript Types', () => {
       expect(useAuth.user?.email).toBe('user@example.com');
     });
 
-    it('should have the expected structure with five properties', () => {
+    it('should have the expected structure with eight properties', () => {
       const useAuth: UseAuth = {
         user: null,
         loading: false,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       };
 
@@ -220,8 +238,83 @@ describe('Auth TypeScript Types', () => {
       expect(keys).toContain('loading');
       expect(keys).toContain('error');
       expect(keys).toContain('signIn');
+      expect(keys).toContain('signInWithEmail');
+      expect(keys).toContain('signUpWithEmail');
+      expect(keys).toContain('resetPassword');
       expect(keys).toContain('signOut');
-      expect(keys).toHaveLength(5);
+      expect(keys).toHaveLength(8);
+    });
+
+    it('should have signInWithEmail method that accepts email and password', async () => {
+      let capturedEmail = '';
+      let capturedPassword = '';
+
+      const useAuth: UseAuth = {
+        user: null,
+        loading: false,
+        error: null,
+        signIn: async () => {},
+        signInWithEmail: async (email, password) => {
+          capturedEmail = email;
+          capturedPassword = password;
+        },
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
+        signOut: async () => {},
+      };
+
+      await useAuth.signInWithEmail('test@example.com', 'password123');
+
+      expect(capturedEmail).toBe('test@example.com');
+      expect(capturedPassword).toBe('password123');
+    });
+
+    it('should have signUpWithEmail method that accepts email, password, and optional displayName', async () => {
+      let capturedEmail = '';
+      let capturedPassword = '';
+      let capturedDisplayName: string | undefined;
+
+      const useAuth: UseAuth = {
+        user: null,
+        loading: false,
+        error: null,
+        signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async (email, password, displayName) => {
+          capturedEmail = email;
+          capturedPassword = password;
+          capturedDisplayName = displayName;
+        },
+        resetPassword: async () => {},
+        signOut: async () => {},
+      };
+
+      await useAuth.signUpWithEmail('new@example.com', 'newpass123', 'New User');
+
+      expect(capturedEmail).toBe('new@example.com');
+      expect(capturedPassword).toBe('newpass123');
+      expect(capturedDisplayName).toBe('New User');
+    });
+
+    it('should have resetPassword method that accepts email', async () => {
+      let capturedEmail = '';
+
+      const useAuth: UseAuth = {
+        user: null,
+        loading: false,
+        error: null,
+        signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async (email) => {
+          capturedEmail = email;
+        },
+        signOut: async () => {},
+      };
+
+      await useAuth.resetPassword('forgot@example.com');
+
+      expect(capturedEmail).toBe('forgot@example.com');
     });
   });
 
@@ -257,6 +350,9 @@ describe('Auth TypeScript Types', () => {
         loading: false,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       });
 
@@ -294,6 +390,9 @@ describe('Auth TypeScript Types', () => {
         loading: false,
         error: null,
         signIn: async () => {},
+        signInWithEmail: async () => {},
+        signUpWithEmail: async () => {},
+        resetPassword: async () => {},
         signOut: async () => {},
       };
 

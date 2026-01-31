@@ -27,6 +27,10 @@ jest.mock('lucide-react', () => ({
     React.createElement('svg', { 'data-testid': 'mappin-icon', className }),
   X: ({ className }: { className?: string }) =>
     React.createElement('svg', { 'data-testid': 'x-icon', className }),
+  Eye: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'eye-icon', className }),
+  EyeOff: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'eyeoff-icon', className }),
 }));
 
 // Mock cn utility
@@ -62,19 +66,21 @@ jest.mock('@/components/ui/dialog', () => ({
 
 // Mock Button component
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, className, variant }: {
+  Button: ({ children, onClick, disabled, className, variant, type }: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     className?: string;
     variant?: string;
+    type?: 'button' | 'submit' | 'reset';
   }) =>
     React.createElement('button', {
+      type: type || 'button',
       onClick,
       disabled,
       className,
       'data-variant': variant,
-      'data-testid': 'google-button',
+      'data-testid': variant === 'outline' ? 'google-button' : (variant === 'link' ? 'link-button' : 'submit-button'),
     }, children),
 }));
 
@@ -92,8 +98,42 @@ jest.mock('@/components/ui/toast', () => ({
     }, children),
 }));
 
+// Mock Input component
+jest.mock('@/components/ui/input', () => ({
+  Input: ({ id, type, placeholder, value, onChange, disabled, autoComplete, className }: {
+    id?: string;
+    type?: string;
+    placeholder?: string;
+    value?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    disabled?: boolean;
+    autoComplete?: string;
+    className?: string;
+  }) =>
+    React.createElement('input', {
+      id,
+      type,
+      placeholder,
+      value,
+      onChange,
+      disabled,
+      autoComplete,
+      className,
+      'data-testid': `input-${id || type || 'default'}`,
+    }),
+}));
+
+// Mock Label component
+jest.mock('@/components/ui/label', () => ({
+  Label: ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) =>
+    React.createElement('label', { htmlFor, 'data-testid': `label-${htmlFor}` }, children),
+}));
+
 // Mock useAuth hook
 const mockSignIn = jest.fn();
+const mockSignInWithEmail = jest.fn();
+const mockSignUpWithEmail = jest.fn();
+const mockResetPassword = jest.fn();
 const mockSignOut = jest.fn();
 const mockClearError = jest.fn();
 let mockAuthError: string | null = null;
@@ -104,6 +144,9 @@ jest.mock('@/contexts/auth-context', () => ({
     loading: false,
     error: mockAuthError,
     signIn: mockSignIn,
+    signInWithEmail: mockSignInWithEmail,
+    signUpWithEmail: mockSignUpWithEmail,
+    resetPassword: mockResetPassword,
     signOut: mockSignOut,
     clearError: mockClearError,
   }),
@@ -113,14 +156,40 @@ jest.mock('@/contexts/auth-context', () => ({
 let mockIsRTL = false;
 const mockT = jest.fn((key: string, params?: Record<string, string | number>) => {
   const translations: Record<string, string> = {
+    'auth.signIn': 'Sign In',
+    'auth.signUp': 'Sign Up',
     'auth.signInTitle': 'Sign In',
+    'auth.signUpTitle': 'Create Account',
     'auth.signInSubtitle': 'Save your measurements and access them from any device.',
+    'auth.signUpSubtitle': 'Create an account to save your measurements.',
     'auth.continueWithGoogle': 'Continue with Google',
+    'auth.signInWithEmail': 'Sign In with Email',
+    'auth.signUpWithEmail': 'Create Account',
+    'auth.email': 'Email',
+    'auth.password': 'Password',
+    'auth.confirmPassword': 'Confirm Password',
+    'auth.displayName': 'Display Name',
+    'auth.emailPlaceholder': 'you@example.com',
+    'auth.forgotPassword': 'Forgot password?',
+    'auth.forgotPasswordTitle': 'Reset Password',
+    'auth.forgotPasswordSubtitle': 'Enter your email and we\'ll send you a reset link.',
+    'auth.sendResetLink': 'Send Reset Link',
+    'auth.resetLinkSent': 'Password reset email sent! Check your inbox.',
+    'auth.backToSignIn': 'Back to Sign In',
+    'auth.orContinueWith': 'or continue with',
     'auth.termsNotice': 'By signing in, you agree to our Terms of Service and Privacy Policy',
     'auth.signedInAs': params ? `Signed in as ${params.name}` : 'Signed in as {name}',
     'errors.popupBlocked': 'Please allow popups for this site to sign in',
     'errors.networkError': 'Network error. Please check your connection.',
     'errors.unknownError': 'Something went wrong. Please try again.',
+    'errors.invalidEmail': 'Please enter a valid email address',
+    'errors.weakPassword': 'Password must be at least 6 characters',
+    'errors.passwordMismatch': 'Passwords do not match',
+    'errors.emailInUse': 'An account with this email already exists',
+    'errors.userNotFound': 'No account found with this email',
+    'errors.wrongPassword': 'Incorrect password',
+    'errors.invalidCredentials': 'Invalid email or password',
+    'common.retry': 'Retry',
   };
   return translations[key] ?? key;
 });
@@ -222,8 +291,8 @@ describe('LoginModal Component', () => {
         const title = document.body.querySelector('h2');
         expect(title?.textContent).toBe('Sign In');
 
-        // Check for Google sign-in button
-        const googleButton = document.body.querySelector('button');
+        // Check for Google sign-in button (use data-testid)
+        const googleButton = document.body.querySelector('[data-testid="google-button"]');
         expect(googleButton?.textContent).toContain('Continue with Google');
       } finally {
         harness.unmount();
@@ -357,7 +426,7 @@ describe('LoginModal Component', () => {
 
       try {
         expect(mockT).toHaveBeenCalledWith('auth.continueWithGoogle');
-        const button = document.body.querySelector('button');
+        const button = document.body.querySelector('[data-testid="google-button"]');
         expect(button?.textContent).toContain('Continue with Google');
       } finally {
         harness.unmount();
