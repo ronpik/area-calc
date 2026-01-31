@@ -34,13 +34,15 @@ Automated deployment scripts for deploying AreaCalc to Vercel.
    - Display `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` for you to save
 
 4. **Save Your Credentials**:
-   After running `create-project.sh`, you'll have all 3 required values:
+   After running `create-project.sh`, you'll have these values:
 
-   | Variable | Description | Source |
-   |----------|-------------|--------|
-   | `VERCEL_TOKEN` | API token | From step 2 |
-   | `VERCEL_ORG_ID` | Organization ID | Output from step 3 |
-   | `VERCEL_PROJECT_ID` | Project ID | Output from step 3 |
+   | Variable | Required | Description | Source |
+   |----------|----------|-------------|--------|
+   | `VERCEL_TOKEN` | Yes | API token | From step 2 |
+   | `VERCEL_ORG_ID` | No* | Organization ID | Output from step 3 |
+   | `VERCEL_PROJECT_ID` | No* | Project ID | Output from step 3 |
+
+   *For local development, ORG_ID and PROJECT_ID are optional if you have an existing `.vercel/project.json` (created by `create-project.sh` or `vercel link`). For CI/CD, all three are recommended.
 
 5. **Configure Firebase Environment Variables**:
    Go to Vercel Dashboard > Your Project > Settings > Environment Variables
@@ -55,13 +57,9 @@ Automated deployment scripts for deploying AreaCalc to Vercel.
 
 ### Deploying
 
-Set environment variables and run the deploy script:
-
+**Local Development** (if you have an existing project link):
 ```bash
-# Set credentials
 export VERCEL_TOKEN=your_token
-export VERCEL_ORG_ID=your_org_id
-export VERCEL_PROJECT_ID=your_project_id
 
 # Preview deployment
 ./deployment/vercel/deploy.sh
@@ -69,6 +67,17 @@ export VERCEL_PROJECT_ID=your_project_id
 # Production deployment
 ./deployment/vercel/deploy.sh --prod
 ```
+
+**CI/CD** (fully automated, no existing project link needed):
+```bash
+export VERCEL_TOKEN=your_token
+export VERCEL_ORG_ID=your_org_id
+export VERCEL_PROJECT_ID=your_project_id
+
+./deployment/vercel/deploy.sh --prod
+```
+
+**No existing project link?** If `.vercel/project.json` doesn't exist, the script will run `vercel link` interactively to set one up.
 
 The deployment URL is saved to `deployment-url.txt`.
 
@@ -142,9 +151,9 @@ jobs:
 
 Add these to your repository secrets (Settings > Secrets and variables > Actions):
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+- `VERCEL_TOKEN` (required)
+- `VERCEL_ORG_ID` (recommended for CI/CD)
+- `VERCEL_PROJECT_ID` (recommended for CI/CD)
 
 ## Troubleshooting
 
