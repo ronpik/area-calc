@@ -1,0 +1,1091 @@
+/**
+ * @jest-environment jsdom
+ */
+
+/**
+ * Tests for Login Modal Component
+ *
+ * Test requirements from spec (Task 3.1):
+ * - Modal opens when `open` is true
+ * - Modal closes when X is clicked
+ * - Modal closes when clicking outside
+ * - Google button shows loading state during sign-in
+ * - Error message displays when auth fails
+ * - RTL layout applies for Hebrew locale
+ * - Modal closes on successful sign-in
+ */
+
+import React from 'react';
+import { createRoot, Root } from 'react-dom/client';
+import { act } from 'react';
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Loader2: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'loader-icon', className }),
+  MapPin: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'mappin-icon', className }),
+  X: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'x-icon', className }),
+  Eye: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'eye-icon', className }),
+  EyeOff: ({ className }: { className?: string }) =>
+    React.createElement('svg', { 'data-testid': 'eyeoff-icon', className }),
+}));
+
+// Mock cn utility
+jest.mock('@/lib/utils', () => ({
+  cn: (...classes: (string | undefined | boolean)[]) => classes.filter(Boolean).join(' '),
+}));
+
+// Mock Dialog components
+let mockDialogOnOpenChange: ((open: boolean) => void) | null = null;
+
+jest.mock('@/components/ui/dialog', () => ({
+  Dialog: ({ open, onOpenChange, children }: { open: boolean; onOpenChange: (open: boolean) => void; children: React.ReactNode }) => {
+    mockDialogOnOpenChange = onOpenChange;
+    return open ? React.createElement('div', { 'data-testid': 'dialog' }, children) : null;
+  },
+  DialogContent: ({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) =>
+    React.createElement('div', { role: 'dialog', className, style, 'data-testid': 'dialog-content' },
+      children,
+      React.createElement('button', {
+        type: 'button',
+        'data-testid': 'close-button',
+        onClick: () => mockDialogOnOpenChange?.(false),
+      },
+        React.createElement('svg', { 'data-testid': 'x-icon' }),
+        React.createElement('span', { className: 'sr-only' }, 'Close')
+      )
+    ),
+  DialogHeader: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+    React.createElement('div', { 'data-testid': 'dialog-header', className }, children),
+  DialogTitle: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+    React.createElement('h2', { 'data-testid': 'dialog-title', className }, children),
+}));
+
+// Mock Button component
+jest.mock('@/components/ui/button', () => ({
+  Button: ({ children, onClick, disabled, className, variant, type }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    className?: string;
+    variant?: string;
+    type?: 'button' | 'submit' | 'reset';
+  }) =>
+    React.createElement('button', {
+      type: type || 'button',
+      onClick,
+      disabled,
+      className,
+      'data-variant': variant,
+      'data-testid': variant === 'outline' ? 'google-button' : (variant === 'link' ? 'link-button' : 'submit-button'),
+    }, children),
+}));
+
+// Mock ToastAction component
+jest.mock('@/components/ui/toast', () => ({
+  ToastAction: ({ children, onClick, altText }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    altText?: string;
+  }) =>
+    React.createElement('button', {
+      onClick,
+      'data-testid': 'toast-action',
+      'aria-label': altText,
+    }, children),
+}));
+
+// Mock Input component
+jest.mock('@/components/ui/input', () => ({
+  Input: ({ id, type, placeholder, value, onChange, disabled, autoComplete, className }: {
+    id?: string;
+    type?: string;
+    placeholder?: string;
+    value?: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    disabled?: boolean;
+    autoComplete?: string;
+    className?: string;
+  }) =>
+    React.createElement('input', {
+      id,
+      type,
+      placeholder,
+      value,
+      onChange,
+      disabled,
+      autoComplete,
+      className,
+      'data-testid': `input-${id || type || 'default'}`,
+    }),
+}));
+
+// Mock Label component
+jest.mock('@/components/ui/label', () => ({
+  Label: ({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) =>
+    React.createElement('label', { htmlFor, 'data-testid': `label-${htmlFor}` }, children),
+}));
+
+// Mock useAuth hook
+const mockSignIn = jest.fn();
+const mockSignInWithEmail = jest.fn();
+const mockSignUpWithEmail = jest.fn();
+const mockResetPassword = jest.fn();
+const mockSignOut = jest.fn();
+const mockClearError = jest.fn();
+let mockAuthError: string | null = null;
+
+jest.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    error: mockAuthError,
+    signIn: mockSignIn,
+    signInWithEmail: mockSignInWithEmail,
+    signUpWithEmail: mockSignUpWithEmail,
+    resetPassword: mockResetPassword,
+    signOut: mockSignOut,
+    clearError: mockClearError,
+  }),
+}));
+
+// Mock useI18n hook
+let mockIsRTL = false;
+const mockT = jest.fn((key: string, params?: Record<string, string | number>) => {
+  const translations: Record<string, string> = {
+    'auth.signIn': 'Sign In',
+    'auth.signUp': 'Sign Up',
+    'auth.signInTitle': 'Sign In',
+    'auth.signUpTitle': 'Create Account',
+    'auth.signInSubtitle': 'Save your measurements and access them from any device.',
+    'auth.signUpSubtitle': 'Create an account to save your measurements.',
+    'auth.continueWithGoogle': 'Continue with Google',
+    'auth.signInWithEmail': 'Sign In with Email',
+    'auth.signUpWithEmail': 'Create Account',
+    'auth.email': 'Email',
+    'auth.password': 'Password',
+    'auth.confirmPassword': 'Confirm Password',
+    'auth.displayName': 'Display Name',
+    'auth.emailPlaceholder': 'you@example.com',
+    'auth.forgotPassword': 'Forgot password?',
+    'auth.forgotPasswordTitle': 'Reset Password',
+    'auth.forgotPasswordSubtitle': 'Enter your email and we\'ll send you a reset link.',
+    'auth.sendResetLink': 'Send Reset Link',
+    'auth.resetLinkSent': 'Password reset email sent! Check your inbox.',
+    'auth.backToSignIn': 'Back to Sign In',
+    'auth.orContinueWith': 'or continue with',
+    'auth.termsNotice': 'By signing in, you agree to our Terms of Service and Privacy Policy',
+    'auth.signedInAs': params ? `Signed in as ${params.name}` : 'Signed in as {name}',
+    'errors.popupBlocked': 'Please allow popups for this site to sign in',
+    'errors.networkError': 'Network error. Please check your connection.',
+    'errors.unknownError': 'Something went wrong. Please try again.',
+    'errors.invalidEmail': 'Please enter a valid email address',
+    'errors.weakPassword': 'Password must be at least 6 characters',
+    'errors.passwordMismatch': 'Passwords do not match',
+    'errors.emailInUse': 'An account with this email already exists',
+    'errors.userNotFound': 'No account found with this email',
+    'errors.wrongPassword': 'Incorrect password',
+    'errors.invalidCredentials': 'Invalid email or password',
+    'common.retry': 'Retry',
+  };
+  return translations[key] ?? key;
+});
+
+jest.mock('@/contexts/i18n-context', () => ({
+  useI18n: () => ({
+    t: mockT,
+    locale: mockIsRTL ? 'he' : 'en',
+    isRTL: mockIsRTL,
+  }),
+}));
+
+// Mock useToast hook
+const mockToast = jest.fn();
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+    toasts: [],
+    dismiss: jest.fn(),
+  }),
+}));
+
+// Import component after mocks
+import { LoginModal } from '@/components/login-modal';
+
+// Helper to render component
+function createTestHarness() {
+  let container: HTMLDivElement | null = null;
+  let root: Root | null = null;
+
+  function mount(props: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess?: () => void;
+  }) {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => {
+      root!.render(<LoginModal {...props} />);
+    });
+  }
+
+  function unmount() {
+    if (root) {
+      act(() => {
+        root!.unmount();
+      });
+    }
+    if (container && document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+    root = null;
+    container = null;
+  }
+
+  function rerender(props: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess?: () => void;
+  }) {
+    act(() => {
+      root!.render(<LoginModal {...props} />);
+    });
+  }
+
+  return {
+    mount,
+    unmount,
+    rerender,
+    getContainer: () => container,
+  };
+}
+
+describe('LoginModal Component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuthError = null;
+    mockIsRTL = false;
+    mockSignIn.mockReset();
+    mockSignOut.mockReset();
+    mockClearError.mockReset();
+    mockT.mockClear();
+    mockToast.mockClear();
+  });
+
+  describe('Modal Open/Close Behavior', () => {
+    it('should render modal content when open is true', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Modal content should be visible
+        const dialogContent = document.querySelector('[role="dialog"]');
+        expect(dialogContent).not.toBeNull();
+
+        // Check for modal title
+        const title = document.body.querySelector('h2');
+        expect(title?.textContent).toBe('Sign In');
+
+        // Check for Google sign-in button (use data-testid)
+        const googleButton = document.body.querySelector('[data-testid="google-button"]');
+        expect(googleButton?.textContent).toContain('Continue with Google');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not render modal content when open is false', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: false, onOpenChange });
+
+      try {
+        // Modal content should not be visible
+        const dialogContent = document.querySelector('[role="dialog"]');
+        expect(dialogContent).toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should call onOpenChange(false) when X button is clicked', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Find the close button (has sr-only text "Close")
+        const closeButton = document.body.querySelector('button[type="button"]');
+        // The close button is the one with the X icon (has class for close)
+        const allButtons = document.body.querySelectorAll('button');
+        let closeBtn: Element | null = null;
+        allButtons.forEach(btn => {
+          // The close button contains a span with "Close" text
+          const srOnlySpan = btn.querySelector('.sr-only');
+          if (srOnlySpan?.textContent === 'Close') {
+            closeBtn = btn;
+          }
+        });
+
+        expect(closeBtn).not.toBeNull();
+
+        act(() => {
+          closeBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should pass onOpenChange to Dialog for handling outside click', () => {
+      // Note: The actual overlay click behavior is handled by Radix Dialog component
+      // We verify that LoginModal passes onOpenChange to the Dialog, which handles
+      // closing on outside click. Our mock captures onOpenChange when Dialog mounts.
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Verify that mockDialogOnOpenChange was set (Dialog received onOpenChange)
+        expect(mockDialogOnOpenChange).not.toBeNull();
+
+        // Simulate what Dialog does when overlay is clicked
+        act(() => {
+          mockDialogOnOpenChange!(false);
+        });
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should pass onOpenChange to Dialog for handling Escape key', () => {
+      // Note: The actual Escape key behavior is handled by Radix Dialog component
+      // We verify that onOpenChange callback is correctly wired up
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Simulate what Dialog does when Escape is pressed
+        act(() => {
+          mockDialogOnOpenChange!(false);
+        });
+
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Modal Content', () => {
+    it('should display sign-in title', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('auth.signInTitle');
+        const title = document.body.querySelector('h2');
+        expect(title?.textContent).toBe('Sign In');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display sign-in subtitle', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('auth.signInSubtitle');
+        // Find the subtitle paragraph
+        const subtitle = Array.from(document.body.querySelectorAll('p')).find(
+          p => p.textContent?.includes('Save your measurements')
+        );
+        expect(subtitle).not.toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display Google sign-in button with correct text', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('auth.continueWithGoogle');
+        const button = document.body.querySelector('[data-testid="google-button"]');
+        expect(button?.textContent).toContain('Continue with Google');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display terms notice at the bottom', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('auth.termsNotice');
+        const termsNotice = Array.from(document.body.querySelectorAll('p')).find(
+          p => p.textContent?.includes('Terms of Service')
+        );
+        expect(termsNotice).not.toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display MapPin icon', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // MapPin is rendered as an SVG with lucide-react
+        const svgs = document.body.querySelectorAll('svg');
+        // There should be at least one SVG (MapPin icon, and potentially the Google logo)
+        expect(svgs.length).toBeGreaterThan(0);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display Google logo SVG in button when not loading', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Find the Google button and check for its SVG (4 paths for Google logo)
+        const buttons = document.body.querySelectorAll('button');
+        let googleButton: Element | null = null;
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn;
+          }
+        });
+
+        expect(googleButton).not.toBeNull();
+        const googleSvg = googleButton?.querySelector('svg');
+        expect(googleSvg).not.toBeNull();
+
+        // Google logo has 4 paths
+        const paths = googleSvg?.querySelectorAll('path');
+        expect(paths?.length).toBe(4);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Google Sign-In Button Loading State', () => {
+    it('should show loading spinner when sign-in is in progress', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      // Create a promise that doesn't resolve immediately
+      let resolveSignIn: () => void;
+      const signInPromise = new Promise<void>((resolve) => {
+        resolveSignIn = resolve;
+      });
+      mockSignIn.mockReturnValue(signInPromise);
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Find and click the Google button
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        expect(googleButton).not.toBeNull();
+
+        // Button should not be disabled initially
+        expect(googleButton?.disabled).toBe(false);
+
+        // Click the button to start sign-in
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Button should now be disabled (loading state)
+        expect(googleButton?.disabled).toBe(true);
+
+        // Should show Loader2 spinner (animate-spin class)
+        const spinner = googleButton?.querySelector('.animate-spin');
+        expect(spinner).not.toBeNull();
+
+        // Resolve the sign-in
+        await act(async () => {
+          resolveSignIn!();
+          await signInPromise;
+        });
+
+        // Button should no longer be disabled
+        expect(googleButton?.disabled).toBe(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should disable Google button during sign-in', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      let resolveSignIn: () => void;
+      const signInPromise = new Promise<void>((resolve) => {
+        resolveSignIn = resolve;
+      });
+      mockSignIn.mockReturnValue(signInPromise);
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        // Start sign-in
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Verify disabled state
+        expect(googleButton?.disabled).toBe(true);
+
+        // Cleanup
+        await act(async () => {
+          resolveSignIn!();
+          await signInPromise;
+        });
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should re-enable button after sign-in completes (success)', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockResolvedValue(undefined);
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // After successful sign-in, button should be re-enabled
+        expect(googleButton?.disabled).toBe(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should re-enable button after sign-in fails', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockRejectedValue({ code: 'auth/popup-blocked' });
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // After failed sign-in, button should be re-enabled
+        expect(googleButton?.disabled).toBe(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Error Display', () => {
+    it('should display error message when auth has error', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockAuthError = 'popupBlocked';
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('errors.popupBlocked');
+
+        // Find error paragraph (has text-destructive class)
+        const errorParagraphs = Array.from(document.body.querySelectorAll('p')).filter(
+          p => p.className.includes('destructive') || p.textContent?.includes('popups')
+        );
+        expect(errorParagraphs.length).toBeGreaterThan(0);
+        expect(errorParagraphs[0].textContent).toBe('Please allow popups for this site to sign in');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should NOT display network error inline (shown via toast instead)', () => {
+      // Network errors are shown via toast, not inline (Task 4.1 change)
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockAuthError = 'networkError';
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Network error is excluded from inline display (error !== 'networkError')
+        const errorParagraph = Array.from(document.body.querySelectorAll('p')).find(
+          p => p.textContent?.includes('Network error')
+        );
+        expect(errorParagraph).toBeUndefined();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should display unknown error message', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockAuthError = 'unknownError';
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        expect(mockT).toHaveBeenCalledWith('errors.unknownError');
+
+        const errorParagraph = Array.from(document.body.querySelectorAll('p')).find(
+          p => p.textContent?.includes('Something went wrong')
+        );
+        expect(errorParagraph).not.toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not display error message when error is null', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockAuthError = null;
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // Check that no error-related translation was called
+        const errorCalls = mockT.mock.calls.filter(
+          call => call[0].startsWith('errors.')
+        );
+        expect(errorCalls.length).toBe(0);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('RTL Layout for Hebrew Locale', () => {
+    it('should apply RTL direction when isRTL is true', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockIsRTL = true;
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        const dialogContent = document.querySelector('[role="dialog"]');
+        expect(dialogContent).not.toBeNull();
+
+        // Check for rtl class
+        expect(dialogContent?.className).toContain('rtl');
+
+        // Check for direction style
+        const style = (dialogContent as HTMLElement)?.style;
+        expect(style?.direction).toBe('rtl');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not apply RTL direction when isRTL is false', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockIsRTL = false;
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        const dialogContent = document.querySelector('[role="dialog"]');
+        expect(dialogContent).not.toBeNull();
+
+        // Should not have rtl class
+        expect(dialogContent?.className).not.toContain('rtl');
+
+        // Direction should be ltr
+        const style = (dialogContent as HTMLElement)?.style;
+        expect(style?.direction).toBe('ltr');
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Successful Sign-In Flow', () => {
+    it('should close modal on successful sign-in', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockResolvedValue(undefined);
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Modal should close (onOpenChange called with false)
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should NOT show success toast (toast is shown by AuthButton via onSuccess)', async () => {
+      // Note: Per Task 4.2, success toast was moved from login-modal to auth-button
+      // The login-modal now only calls onSuccess callback, and auth-button shows the toast
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockResolvedValue(undefined);
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Toast should NOT be called by login-modal for success case
+        // (only network error shows toast in login-modal)
+        const successToastCalls = mockToast.mock.calls.filter(
+          call => call[0]?.title?.includes?.('Signed in')
+        );
+        expect(successToastCalls.length).toBe(0);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should call onSuccess callback on successful sign-in', async () => {
+      const onOpenChange = jest.fn();
+      const onSuccess = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockResolvedValue(undefined);
+
+      harness.mount({ open: true, onOpenChange, onSuccess });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        expect(onSuccess).toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not call onSuccess if not provided', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockResolvedValue(undefined);
+
+      // Don't throw error when onSuccess is not provided
+      expect(() => {
+        harness.mount({ open: true, onOpenChange });
+      }).not.toThrow();
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Should complete without error
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Failed Sign-In Flow', () => {
+    it('should not close modal on sign-in failure', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockRejectedValue({ code: 'auth/popup-blocked' });
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Modal should NOT be closed on failure
+        // onOpenChange should not have been called with false due to sign-in
+        // (It might be called from other interactions, but not from handleGoogleSignIn on failure)
+        const closeCalls = onOpenChange.mock.calls.filter(call => call[0] === false);
+        expect(closeCalls.length).toBe(0);
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not show toast for popup-blocked error (shown inline)', async () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockRejectedValue({ code: 'auth/popup-blocked' });
+
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        // Toast should not be called for popup-blocked (shown inline instead)
+        expect(mockToast).not.toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should not call onSuccess on sign-in failure', async () => {
+      const onOpenChange = jest.fn();
+      const onSuccess = jest.fn();
+      const harness = createTestHarness();
+
+      mockSignIn.mockRejectedValue({ code: 'auth/network-request-failed' });
+
+      harness.mount({ open: true, onOpenChange, onSuccess });
+
+      try {
+        let googleButton: HTMLButtonElement | null = null;
+        const buttons = document.body.querySelectorAll('button');
+        buttons.forEach(btn => {
+          if (btn.textContent?.includes('Continue with Google')) {
+            googleButton = btn as HTMLButtonElement;
+          }
+        });
+
+        await act(async () => {
+          googleButton!.click();
+        });
+
+        expect(onSuccess).not.toHaveBeenCalled();
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+
+  describe('Component Props', () => {
+    it('should accept open, onOpenChange, and onSuccess props', () => {
+      const onOpenChange = jest.fn();
+      const onSuccess = jest.fn();
+      const harness = createTestHarness();
+
+      expect(() => {
+        harness.mount({ open: true, onOpenChange, onSuccess });
+      }).not.toThrow();
+
+      harness.unmount();
+    });
+
+    it('should work with onSuccess as undefined (optional prop)', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+
+      expect(() => {
+        harness.mount({ open: true, onOpenChange });
+      }).not.toThrow();
+
+      harness.unmount();
+    });
+  });
+
+  describe('Dialog Structure', () => {
+    it('should render Dialog with DialogContent', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        const dialog = document.querySelector('[role="dialog"]');
+        expect(dialog).not.toBeNull();
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should render DialogHeader with DialogTitle', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        // DialogTitle renders as h2
+        const title = document.body.querySelector('h2');
+        expect(title).not.toBeNull();
+        expect(title?.textContent).toBe('Sign In');
+      } finally {
+        harness.unmount();
+      }
+    });
+
+    it('should have max-width of 400px on sm breakpoint', () => {
+      const onOpenChange = jest.fn();
+      const harness = createTestHarness();
+      harness.mount({ open: true, onOpenChange });
+
+      try {
+        const dialogContent = document.querySelector('[role="dialog"]');
+        expect(dialogContent?.className).toContain('sm:max-w-[400px]');
+      } finally {
+        harness.unmount();
+      }
+    });
+  });
+});
+
+describe('LoginModal Accessibility', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAuthError = null;
+    mockIsRTL = false;
+    mockClearError.mockReset();
+  });
+
+  it('should have proper dialog role', () => {
+    const onOpenChange = jest.fn();
+    const harness = createTestHarness();
+    harness.mount({ open: true, onOpenChange });
+
+    try {
+      const dialog = document.querySelector('[role="dialog"]');
+      expect(dialog).not.toBeNull();
+    } finally {
+      harness.unmount();
+    }
+  });
+
+  it('should have close button with screen reader text', () => {
+    const onOpenChange = jest.fn();
+    const harness = createTestHarness();
+    harness.mount({ open: true, onOpenChange });
+
+    try {
+      const srOnlyText = document.body.querySelector('.sr-only');
+      expect(srOnlyText).not.toBeNull();
+      expect(srOnlyText?.textContent).toBe('Close');
+    } finally {
+      harness.unmount();
+    }
+  });
+});

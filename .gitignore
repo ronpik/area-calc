@@ -33,6 +33,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+deployment-url.txt
 
 # typescript
 *.tsbuildinfo
@@ -43,6 +44,7 @@ next-env.d.ts
 # Environment variables and secrets
 .env
 .env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -192,3 +194,5 @@ datasets/
 
 # firebase deployment
 apphosting.yaml
+/rubik-bold-b64.bck.txt
+/vbcd-dev/

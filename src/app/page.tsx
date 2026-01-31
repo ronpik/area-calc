@@ -16,6 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExportDialog, type KeyValue } from '@/components/export-dialog';
+import { AuthButton } from '@/components/auth-button';
+import type { CurrentSessionState, SessionData, SessionMeta } from '@/types/session';
+import { generatePointsHash } from '@/lib/points-hash';
+import { SessionIndicator } from '@/components/session-indicator';
+import { useI18n } from '@/contexts/i18n-context';
 
 const AreaMap = dynamic(() => import('@/components/area-map').then((mod) => mod.AreaMap), {
   ssr: false,
@@ -31,6 +36,9 @@ export interface TrackedPoint {
 }
 
 const LOCAL_STORAGE_KEY = 'recordedPoints';
+
+// Export setCurrentSession type for use by other modules
+export type SetCurrentSessionFn = React.Dispatch<React.SetStateAction<CurrentSessionState | null>>;
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
@@ -57,8 +65,12 @@ export default function Home() {
 
   const [isExporting, setIsExporting] = useState(false);
 
+  // Session state
+  const [currentSession, setCurrentSession] = useState<CurrentSessionState | null>(null);
+  const [sessionCount, setSessionCount] = useState(0);
 
   const { toast } = useToast();
+  const { t } = useI18n();
 
   useEffect(() => {
     setIsMounted(true);
@@ -212,6 +224,60 @@ export default function Home() {
     return calculatePolygonArea(geoPoints);
   }, [filteredPoints]);
 
+  // Compute unsaved changes - true if current points differ from saved state
+  const hasUnsavedChanges = useMemo(() => {
+    if (!currentSession) return false;
+    return generatePointsHash(points) !== currentSession.pointsHashAtSave;
+  }, [currentSession, points]);
+
+  // Clear session and start new measurement
+  const handleClearSession = useCallback(() => {
+    if (isTracking) {
+      setIsTracking(false);
+    }
+    setPoints([]);
+    setCurrentSession(null);
+    setSelectedPointIndex(null);
+    setDeleteMode(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  }, [isTracking]);
+
+  // Handle save complete - update currentSession and increment sessionCount
+  const handleSaveComplete = useCallback((session: CurrentSessionState) => {
+    setCurrentSession(session);
+    setSessionCount(prev => prev + 1);
+  }, []);
+
+  // Handle loaded session - update points and currentSession
+  const handleLoadSession = useCallback((session: SessionData, meta: SessionMeta) => {
+    // Stop tracking if active
+    if (isTracking) {
+      setIsTracking(false);
+    }
+
+    // Update points
+    setPoints(session.points);
+
+    // Update current session state
+    setCurrentSession({
+      id: session.id,
+      name: session.name,
+      lastSavedAt: session.updatedAt,
+      pointsHashAtSave: generatePointsHash(session.points)
+    });
+
+    // Update localStorage with loaded points
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(session.points));
+
+    // Clear selection state
+    setSelectedPointIndex(null);
+    setDeleteMode(null);
+
+    // Show toast
+    toast({
+      title: t('sessions.sessionLoaded', { name: session.name })
+    });
+  }, [isTracking, toast, t]);
 
   // Handle point selection from list
   const handlePointClick = (index: number) => {
@@ -277,7 +343,24 @@ export default function Home() {
         />
       ) : <div className="h-full w-full bg-muted animate-pulse" />}
       
-      <ExportDialog open={isExporting} onOpenChange={setIsExporting} area={calculatedArea} points={filteredPoints} />
+      <ExportDialog
+        open={isExporting}
+        onOpenChange={setIsExporting}
+        area={calculatedArea}
+        points={filteredPoints}
+        currentSessionName={currentSession?.name}
+      />
+
+      <AuthButton
+        className="absolute top-4 right-4 z-[1000]"
+        points={points}
+        area={calculatedArea}
+        currentSession={currentSession}
+        sessionCount={sessionCount}
+        onSaveComplete={handleSaveComplete}
+        onLoadSession={handleLoadSession}
+        onNewSession={handleClearSession}
+      />
 
       <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:max-w-md z-[1000]">
         {!isPanelExpanded ? (
@@ -318,6 +401,12 @@ export default function Home() {
                         {currentPosition ? `${currentPosition.accuracy.toFixed(1)}m (${accuracyStatus})` : 'Acquiring...'}
                       </span>
                     </CardDescription>
+                    <SessionIndicator
+                      currentSession={currentSession}
+                      hasUnsavedChanges={hasUnsavedChanges}
+                      onNewSession={handleClearSession}
+                      hasPoints={points.length > 0}
+                    />
                   </div>
                    <Button size="icon" variant="ghost" onClick={() => setIsPanelExpanded(false)}>
                       <ChevronsDown />

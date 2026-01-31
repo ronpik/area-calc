@@ -13,6 +13,36 @@ import { PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import type { TrackedPoint } from '@/app/page';
 import { useToast } from '@/hooks/use-toast';
 import { loadRubikFonts } from "@/fonts/Rubik";
+import { calculateBoundsInMeters, expandBoundsByPercentage } from '@/lib/geo';
+
+// Constants for adaptive capture sizing
+const MAX_CAPTURE_DIMENSION = 1200;  // px - longer side fixed at this size
+const MIN_ASPECT_RATIO = 0.5;        // 1:2 portrait limit
+const MAX_ASPECT_RATIO = 2.0;        // 2:1 landscape limit
+const MARGIN_PERCENTAGE = 0.15;      // 15% margin on each side
+
+// Helper function to clamp aspect ratio to prevent extreme captures
+function clampAspectRatio(ratio: number): number {
+  return Math.max(MIN_ASPECT_RATIO, Math.min(MAX_ASPECT_RATIO, ratio));
+}
+
+// Calculate capture dimensions based on area aspect ratio
+function calculateCaptureDimensions(aspectRatio: number): { width: number; height: number } {
+  const clampedRatio = clampAspectRatio(aspectRatio);
+  if (clampedRatio >= 1) {
+    // Landscape or square: width is the longer side
+    return {
+      width: MAX_CAPTURE_DIMENSION,
+      height: Math.round(MAX_CAPTURE_DIMENSION / clampedRatio),
+    };
+  } else {
+    // Portrait: height is the longer side
+    return {
+      width: Math.round(MAX_CAPTURE_DIMENSION * clampedRatio),
+      height: MAX_CAPTURE_DIMENSION,
+    };
+  }
+}
 
 // Helper function to format numbers with thousand separators
 function formatNumberWithSeparators(num: number): string {
@@ -32,9 +62,10 @@ interface ExportDialogProps {
   onOpenChange: (open: boolean) => void;
   area: number;
   points: TrackedPoint[];
+  currentSessionName?: string;
 }
 
-export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogProps) {
+export function ExportDialog({ open, onOpenChange, area, points, currentSessionName }: ExportDialogProps) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [keyValues, setKeyValues] = useState<KeyValue[]>([
@@ -58,6 +89,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       });
     }
   }, [toast]);
+
+  // Auto-populate title from session name when dialog opens
+  useEffect(() => {
+    if (open && currentSessionName) {
+      setTitle(currentSessionName);
+    }
+  }, [open, currentSessionName]);
 
   const addKeyValue = () => {
     setKeyValues([...keyValues, { id: Date.now(), key: '', value: '' }]);
@@ -95,9 +133,21 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       const originalHeight = mapElement.style.height;
       const originalTransform = mapElement.style.transform;
 
-      // Set standardized dimensions for consistent capture (4:3 aspect ratio)
-      const captureWidth = 1200; // px
-      const captureHeight = 900; // px
+      // Calculate adaptive capture dimensions based on area's aspect ratio
+      const boundsMetrics = calculateBoundsInMeters(points.map(p => p.point));
+      let captureWidth: number;
+      let captureHeight: number;
+
+      if (boundsMetrics && points.length >= 3) {
+        // Use adaptive dimensions based on area's natural proportions
+        const dimensions = calculateCaptureDimensions(boundsMetrics.aspectRatio);
+        captureWidth = dimensions.width;
+        captureHeight = dimensions.height;
+      } else {
+        // Fallback to fixed 4:3 for fewer than 3 points
+        captureWidth = 1200;
+        captureHeight = 900;
+      }
 
       mapElement.style.width = `${captureWidth}px`;
       mapElement.style.height = `${captureHeight}px`;
@@ -106,14 +156,17 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
       // Force Leaflet to recalculate and redraw
       map.invalidateSize();
 
-      // Fit map bounds to show all tracked points
-      if (points.length >= 3) {
-        // Use Leaflet's bounds API for accurate bounds calculation
-        const latLngs = points.map(p => [p.point.lat, p.point.lng]);
-        const bounds = (window as any).L.latLngBounds(latLngs);
+      // Fit map bounds to show all tracked points with percentage-based margins
+      if (boundsMetrics && points.length >= 3) {
+        // Expand bounds by margin percentage for consistent visual margins
+        const expandedBounds = expandBoundsByPercentage(boundsMetrics, MARGIN_PERCENTAGE);
+        const leafletBounds = (window as any).L.latLngBounds(
+          [expandedBounds.minLat, expandedBounds.minLng],
+          [expandedBounds.maxLat, expandedBounds.maxLng]
+        );
 
-        map.fitBounds(bounds, {
-          padding: [50, 50],
+        map.fitBounds(leafletBounds, {
+          padding: [0, 0],    // Margins already built into expanded bounds
           maxZoom: 21,        // Allow closer zoom to show area detail
           animate: false      // No animation during export
         });
@@ -333,16 +386,30 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
           currentY += 10; // move down to next line as needed
       }
 
-      // Use fixed 4:3 aspect ratio to match capture dimensions
-      // Reduced size (80% of full width) and right-aligned
-      const imgWidth = (pageWidth - margin * 2) * 0.8;
-      const imgHeight = (imgWidth * 3) / 4; // Maintain 4:3 aspect ratio
+      // Calculate adaptive image dimensions based on capture aspect ratio
+      const captureAspect = captureWidth / captureHeight;
+      const maxImgWidth = pageWidth - margin * 2;  // Full usable width
+      const maxImgHeight = 140;  // Max height to leave room for text below
+
+      let imgWidth: number;
+      let imgHeight: number;
+
+      if (captureAspect > maxImgWidth / maxImgHeight) {
+        // Landscape: constrain by width
+        imgWidth = maxImgWidth;
+        imgHeight = imgWidth / captureAspect;
+      } else {
+        // Portrait or square: constrain by height
+        imgHeight = maxImgHeight;
+        imgWidth = imgHeight * captureAspect;
+      }
+
       const imgX = pageWidth - margin - imgWidth; // Right align
       doc.addImage(mapImageData, 'PNG', imgX, currentY, imgWidth, imgHeight);
 
-      // Draw North Arrow
-      const arrowBaseX = pageWidth - margin - 8;
-      const arrowBaseY = currentY + 15;
+      // Draw North Arrow (positioned relative to image bounds)
+      const arrowBaseX = imgX + imgWidth - 8;  // 8mm from right edge of image
+      const arrowBaseY = currentY + 15;        // 15mm from top of image
       doc.setDrawColor(0);
       doc.setLineWidth(0.5);
       doc.line(arrowBaseX, arrowBaseY, arrowBaseX, arrowBaseY - 10);
@@ -420,14 +487,13 @@ export function ExportDialog({ open, onOpenChange, area, points }: ExportDialogP
         });
       }
 
-      // Open PDF in new tab
-      const pdfBlob = doc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      // Download PDF
+      const filename = (title.trim() || 'area-report') + '.pdf';
+      doc.save(filename);
 
       toast({
-        title: 'PDF נפתח בכרטיסייה חדשה',
-        description: 'הדוח שלך נפתח בכרטיסייה חדשה.',
+        title: 'PDF הורד בהצלחה',
+        description: `הקובץ "${filename}" הורד למכשיר שלך.`,
       });
 
     } catch (error) {
