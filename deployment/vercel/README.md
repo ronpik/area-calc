@@ -66,6 +66,12 @@ export VERCEL_TOKEN=your_token
 
 # Production deployment
 ./deployment/vercel/deploy.sh --prod
+
+# Force rebuild without cache
+./deployment/vercel/deploy.sh --no-cache
+
+# Production + no cache
+./deployment/vercel/deploy.sh --prod --no-cache
 ```
 
 **CI/CD** (fully automated, no existing project link needed):
@@ -176,6 +182,7 @@ Make sure you've configured all Firebase environment variables in the Vercel das
 1. Run `npm run build` locally to check for errors
 2. Check Vercel deployment logs in the dashboard
 3. Ensure all dependencies are in `package.json`
+4. Try deploying with `--no-cache` to force a clean rebuild
 
 ## Files
 

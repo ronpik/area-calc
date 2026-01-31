@@ -1,22 +1,45 @@
 #!/bin/bash
-# deploy.sh - Automated Vercel deployment script
-# Supports both preview and production deployments.
-# Designed for CI/CD (non-interactive) use.
+#
+# Deploy AreaCalc to Vercel
+#
+# Usage: ./deploy.sh [--prod] [--no-cache]
+#
+# Prerequisites:
+#   - Vercel CLI installed (npm i -g vercel) - will auto-install if missing
+#   - VERCEL_TOKEN environment variable set
+#
+# Project Linking (one of the following):
+#   - VERCEL_ORG_ID and VERCEL_PROJECT_ID environment variables (for CI/CD)
+#   - Existing .vercel/project.json file (from previous link)
+#   - Interactive linking via 'vercel link' (fallback)
+#
+# Examples:
+#   ./deploy.sh                       # Deploy preview
+#   ./deploy.sh --prod                # Deploy to production
+#   ./deploy.sh --no-cache            # Force rebuild without cache
+#   ./deploy.sh --prod --no-cache     # Production deploy, no cache
+#
 
 set -e
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Default to preview deployment
+# Configuration
+PROJECT_NAME="area-calc"
+
+# Get the script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Default flags
 PROD_FLAG=""
+FORCE_FLAG=""
 DEPLOY_TYPE="preview"
 
 # Parse arguments
@@ -27,12 +50,17 @@ while [[ $# -gt 0 ]]; do
             DEPLOY_TYPE="production"
             shift
             ;;
+        --no-cache|--force)
+            FORCE_FLAG="--force"
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--prod]"
+            echo "Usage: $0 [--prod] [--no-cache]"
             echo ""
             echo "Options:"
-            echo "  --prod    Deploy to production"
-            echo "  --help    Show this help message"
+            echo "  --prod      Deploy to production (default: preview)"
+            echo "  --no-cache  Force rebuild without using cache"
+            echo "  --help      Show this help message"
             echo ""
             echo "Required environment variables:"
             echo "  VERCEL_TOKEN       API token from Vercel dashboard"
@@ -44,71 +72,86 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
+            echo "Use --help for usage information"
             exit 1
             ;;
     esac
 done
 
-echo -e "${BLUE}======================================${NC}"
-echo -e "${BLUE}  Vercel Deployment Script${NC}"
-echo -e "${BLUE}======================================${NC}"
+# ============================================
+# Header
+# ============================================
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}  Deploy AreaCalc to Vercel${NC}"
+echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "Deployment type: ${GREEN}$DEPLOY_TYPE${NC}"
+
+# ============================================
+# Step 1: Validate Prerequisites
+# ============================================
+echo -e "${CYAN}Step 1: Validating prerequisites...${NC}"
 echo ""
 
 # Check VERCEL_TOKEN (always required)
 if [ -z "$VERCEL_TOKEN" ]; then
     echo -e "${RED}✗ VERCEL_TOKEN is not set${NC}"
     echo ""
-    echo "Get your token from https://vercel.com/account/tokens"
+    echo -e "Get your token from ${CYAN}https://vercel.com/account/tokens${NC}"
     exit 1
 fi
 echo -e "${GREEN}✓${NC} VERCEL_TOKEN is set"
 
 # Check if Vercel CLI is installed
 if ! command -v vercel &> /dev/null; then
-    echo -e "${YELLOW}Vercel CLI not found. Installing...${NC}"
+    echo -e "${YELLOW}! Vercel CLI not found. Installing...${NC}"
     npm install -g vercel
 fi
-echo -e "${GREEN}✓${NC} Vercel CLI is available"
+echo -e "${GREEN}✓${NC} Vercel CLI is available ($(vercel --version 2>/dev/null || echo 'unknown version'))"
 echo ""
 
-# Determine project linking strategy
+# ============================================
+# Step 2: Project Linking
+# ============================================
+echo -e "${CYAN}Step 2: Setting up project link...${NC}"
+echo ""
+
+LINK_METHOD=""
+
 if [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
-    # Strategy 1: Use env vars to create project.json
+    # Strategy 1: Use env vars to create project.json (CI/CD mode)
+    LINK_METHOD="environment variables"
     echo -e "${GREEN}✓${NC} VERCEL_ORG_ID is set"
     echo -e "${GREEN}✓${NC} VERCEL_PROJECT_ID is set"
     echo ""
-    echo -e "${BLUE}Setting up project link from environment variables...${NC}"
+    echo -e "${CYAN}Creating project link from environment variables...${NC}"
     mkdir -p "$PROJECT_ROOT/.vercel"
     cat > "$PROJECT_ROOT/.vercel/project.json" << EOF
-{
-  "orgId": "$VERCEL_ORG_ID",
-  "projectId": "$VERCEL_PROJECT_ID"
-}
+{"orgId":"${VERCEL_ORG_ID}","projectId":"${VERCEL_PROJECT_ID}"}
 EOF
     echo -e "${GREEN}✓${NC} Project linked via .vercel/project.json"
 
 elif [ -f "$PROJECT_ROOT/.vercel/project.json" ]; then
-    # Strategy 2: Use existing project.json
-    echo -e "${YELLOW}!${NC} VERCEL_ORG_ID not set (using existing project link)"
-    echo -e "${YELLOW}!${NC} VERCEL_PROJECT_ID not set (using existing project link)"
+    # Strategy 2: Use existing project.json (local dev mode)
+    LINK_METHOD="existing .vercel/project.json"
+    echo -e "${YELLOW}!${NC} VERCEL_ORG_ID not set"
+    echo -e "${YELLOW}!${NC} VERCEL_PROJECT_ID not set"
     echo ""
     echo -e "${GREEN}✓${NC} Using existing .vercel/project.json"
 
 else
-    # Strategy 3: Run interactive linking
+    # Strategy 3: Run interactive linking (fallback)
+    LINK_METHOD="interactive linking"
     echo -e "${YELLOW}!${NC} VERCEL_ORG_ID not set"
     echo -e "${YELLOW}!${NC} VERCEL_PROJECT_ID not set"
     echo -e "${YELLOW}!${NC} No existing .vercel/project.json found"
     echo ""
-    echo -e "${BLUE}Running interactive project linking...${NC}"
+    echo -e "${CYAN}Running interactive project linking...${NC}"
     echo ""
     cd "$PROJECT_ROOT"
     vercel link --token="$VERCEL_TOKEN"
 
     if [ ! -f "$PROJECT_ROOT/.vercel/project.json" ]; then
-        echo -e "${RED}Error: Project linking failed.${NC}"
+        echo -e "${RED}✗ Project linking failed${NC}"
         exit 1
     fi
     echo -e "${GREEN}✓${NC} Project linked successfully"
@@ -116,20 +159,46 @@ fi
 
 echo ""
 
+# ============================================
+# Configuration Summary
+# ============================================
+echo -e "${YELLOW}Project:${NC}      ${PROJECT_NAME}"
+echo -e "${YELLOW}Deploy type:${NC}  ${DEPLOY_TYPE}"
+echo -e "${YELLOW}Project root:${NC} ${PROJECT_ROOT}"
+echo -e "${YELLOW}Link method:${NC}  ${LINK_METHOD}"
+if [ -n "$FORCE_FLAG" ]; then
+    echo -e "${YELLOW}Cache:${NC}        disabled (--force)"
+fi
+echo ""
+
+# ============================================
+# Step 3: Deploy
+# ============================================
+echo -e "${CYAN}Step 3: Deploying to Vercel (${DEPLOY_TYPE})...${NC}"
+echo ""
+
 # Change to project root for deployment
 cd "$PROJECT_ROOT"
 
-# Run deployment
-echo -e "${BLUE}Starting $DEPLOY_TYPE deployment...${NC}"
+# Build the deploy command (for display)
+DISPLAY_CMD="vercel deploy"
+[ -n "$PROD_FLAG" ] && DISPLAY_CMD="$DISPLAY_CMD --prod"
+[ -n "$FORCE_FLAG" ] && DISPLAY_CMD="$DISPLAY_CMD --force"
+DISPLAY_CMD="$DISPLAY_CMD --yes"
+
+echo -e "${CYAN}Running: ${DISPLAY_CMD} [--token=***]${NC}"
 echo ""
 
-# Deploy with token authentication
-# Using --yes to skip confirmation prompts
-DEPLOY_OUTPUT=$(vercel deploy $PROD_FLAG --yes --token="$VERCEL_TOKEN" 2>&1)
+# Execute deployment
+DEPLOY_OUTPUT=$(vercel deploy $PROD_FLAG $FORCE_FLAG --yes --token="$VERCEL_TOKEN" 2>&1)
 DEPLOY_EXIT_CODE=$?
 
 if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-    echo -e "${RED}Deployment failed:${NC}"
+    echo -e "${RED}========================================${NC}"
+    echo -e "${RED}  Deployment Failed!${NC}"
+    echo -e "${RED}========================================${NC}"
+    echo ""
+    echo -e "${RED}Error output:${NC}"
     echo "$DEPLOY_OUTPUT"
     exit $DEPLOY_EXIT_CODE
 fi
@@ -142,18 +211,27 @@ if [ -z "$DEPLOY_URL" ]; then
     DEPLOY_URL=$(echo "$DEPLOY_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.vercel\.app' | head -1)
 fi
 
+# ============================================
+# Success
+# ============================================
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}  Deployment Complete!${NC}"
+echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "${GREEN}======================================${NC}"
-echo -e "${GREEN}  Deployment Successful!${NC}"
-echo -e "${GREEN}======================================${NC}"
+echo -e "${YELLOW}Deployment URL:${NC} ${DEPLOY_URL}"
 echo ""
-echo -e "Type: ${BLUE}$DEPLOY_TYPE${NC}"
-echo -e "URL:  ${GREEN}$DEPLOY_URL${NC}"
+
+if [ "$DEPLOY_TYPE" = "production" ]; then
+    echo -e "${GREEN}Production deployment is now live!${NC}"
+else
+    echo -e "${CYAN}This is a preview deployment.${NC}"
+    echo -e "Use ${YELLOW}--prod${NC} flag to deploy to production."
+fi
 echo ""
 
 # Save deployment URL to file
 echo "$DEPLOY_URL" > "$PROJECT_ROOT/deployment-url.txt"
-echo -e "URL saved to: ${BLUE}deployment-url.txt${NC}"
+echo -e "${GREEN}✓${NC} URL saved to ${CYAN}deployment-url.txt${NC}"
 
 # Set output for GitHub Actions
 if [ -n "$GITHUB_OUTPUT" ]; then
