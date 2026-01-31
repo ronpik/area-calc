@@ -14,6 +14,7 @@ import { Loader2, Save, Copy } from 'lucide-react';
 import type { CurrentSessionState } from '@/types/session';
 import { SESSION_NAME_MAX_LENGTH } from '@/types/session';
 import type { TrackedPoint } from '@/app/page';
+import { generatePointsHash } from '@/lib/points-hash';
 
 type SaveMode =
   | 'new'           // Saving new session (no current session)
@@ -91,11 +92,7 @@ export function SaveSessionModal({
         id: sessionMeta.id,
         name: sessionMeta.name,
         lastSavedAt: sessionMeta.updatedAt,
-        pointsHashAtSave: JSON.stringify(points.map(p => ({
-          lat: p.point.lat,
-          lng: p.point.lng,
-          type: p.type
-        }))),
+        pointsHashAtSave: generatePointsHash(points),
       };
 
       onSaveComplete(updatedSession);
@@ -129,11 +126,7 @@ export function SaveSessionModal({
         id: sessionMeta.id,
         name: sessionMeta.name,
         lastSavedAt: sessionMeta.updatedAt,
-        pointsHashAtSave: JSON.stringify(points.map(p => ({
-          lat: p.point.lat,
-          lng: p.point.lng,
-          type: p.type
-        }))),
+        pointsHashAtSave: generatePointsHash(points),
       };
 
       onSaveComplete(newSession);
