@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ref, uploadString, getDownloadURL, deleteObject, listAll } from 'firebase/storage';
+import { ref, uploadString, getBytes, deleteObject, listAll } from 'firebase/storage';
 import { storage, auth } from '@/lib/firebase';
 import { getIndexPath, getSessionPath, getUserBasePath } from '@/lib/storage-paths';
 import { migrateSessionData, migrateIndex } from '@/lib/session-migration';
@@ -58,10 +58,8 @@ export function useStorage(): UseStorageReturn {
   const fetchIndexInternal = useCallback(async (uid: string): Promise<UserSessionIndex | null> => {
     const indexRef = ref(storage, getIndexPath(uid));
     try {
-      const url = await getDownloadURL(indexRef);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch index');
-      const rawText = await response.text();
+      const bytes = await getBytes(indexRef);
+      const rawText = new TextDecoder().decode(bytes);
 
       // Attempt to parse JSON - handle corruption gracefully
       let data;
@@ -197,10 +195,8 @@ export function useStorage(): UseStorageReturn {
 
       // Load existing session to preserve createdAt and name
       const sessionRef = ref(storage, getSessionPath(user.uid, sessionId));
-      const url = await getDownloadURL(sessionRef);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch session');
-      const existingData = await response.json();
+      const bytes = await getBytes(sessionRef);
+      const existingData = JSON.parse(new TextDecoder().decode(bytes));
       const migratedData = migrateSessionData(existingData);
 
       // Build updated session data (preserve createdAt and name)
@@ -264,10 +260,8 @@ export function useStorage(): UseStorageReturn {
     setError(null);
     try {
       const sessionRef = ref(storage, getSessionPath(user.uid, sessionId));
-      const url = await getDownloadURL(sessionRef);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch session');
-      const data = await response.json();
+      const bytes = await getBytes(sessionRef);
+      const data = JSON.parse(new TextDecoder().decode(bytes));
       return migrateSessionData(data);
     } catch (err) {
       // Check if session file is missing
@@ -297,10 +291,8 @@ export function useStorage(): UseStorageReturn {
 
       // Load existing session
       const sessionRef = ref(storage, getSessionPath(user.uid, sessionId));
-      const url = await getDownloadURL(sessionRef);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch session');
-      const existingData = await response.json();
+      const bytes = await getBytes(sessionRef);
+      const existingData = JSON.parse(new TextDecoder().decode(bytes));
       const migratedData = migrateSessionData(existingData);
 
       // Update session with new name
